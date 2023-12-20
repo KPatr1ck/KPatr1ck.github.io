@@ -49,13 +49,6 @@
     "text": "5. 抛砖引玉\n此次分享专注的是 Transformer 在计算和推理上结构优化，该类方法主要通过优化 Transformer 的结构以实现推理性能的提升。\n当前 LLM 加速技术是热门的研究方向，目前包括但不限于以下几点(NLP（十八）：LLM 的推理优化技术纵览)：\n\n子图融合（subgraph fusion）\n模型压缩（Model Compression）\n并行化（Parallelism）\nTransformer 结构优化\n动态批处理（Dynamic Batch, Continuous batch）\nKV cache 优化\n投机采样与MoE\n\n一起学习、讨论和进步。"
   },
   {
-    "objectID": "index.html",
-    "href": "index.html",
-    "title": "Welcome",
-    "section": "",
-    "text": "目标：沉淀一些技术文章"
-  },
-  {
     "objectID": "llm/flash_attention_and_paged_attention.html#附录测试脚本",
     "href": "llm/flash_attention_and_paged_attention.html#附录测试脚本",
     "title": "FlashAttention 和 PagedAttention",
@@ -68,5 +61,12 @@
     "title": "About",
     "section": "",
     "text": "Nothing left…"
+  },
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Welcome",
+    "section": "",
+    "text": "目标：沉淀一些技术文章"
   }
 ]
