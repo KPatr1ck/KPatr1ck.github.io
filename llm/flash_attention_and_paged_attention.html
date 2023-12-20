@@ -316,8 +316,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>where <span class="math inline">\(x, y \in \mathbb{R}^V\)</span> . The naive implementation (see algorithm <code>1</code>) scans the input vector two times - one to calculate the normalization term <span class="math inline">\(d_V\)</span> and another to compute output values <span class="math inline">\(y_i\)</span> - effectively doing <strong>three memory accesses</strong> per vector element: two loads and one store.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="../attachments/d20eb1b8.png" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">d20eb1b8.png</figcaption>
+<p><img src="../attachments/d20eb1b8.png" class="img-fluid figure-img" style="width:60.0%"></p>
 </figure>
 </div>
 </section>
@@ -327,8 +326,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><span class="math display">\[ y_i = \frac{e^{x_i-\max_{k=1}^{V}x_k}}{\sum_{j=1}^{V} e^{x_j-\max_{k=1}^{V}x_k}}  \tag{2}\]</span></p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="../attachments/de4cc3d9.png" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">de4cc3d9.png</figcaption>
+<p><img src="../attachments/de4cc3d9.png" class="img-fluid figure-img" style="width:60.0%"></p>
 </figure>
 </div>
 <p>But Safe Softmax does three passes over input vector: The first one calculates the maximum value <span class="math inline">\(m_V\)</span> , the second one - normalization term <span class="math inline">\(d_V\)</span> , and the third one - final values <span class="math inline">\(y_i\)</span>, see algorithm <code>2</code>; This results in <strong>4 memory access</strong> per vector element overall.</p>
@@ -338,8 +336,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p>The algorithm <code>3</code> calculates both the maximum value m and the normalization term <span class="math inline">\(d\)</span> in a <strong>single pass</strong> over input vector with negligible additional cost of two operations per vector element. It <strong>reduces memory accesses</strong> from 4 down to 3 per vector element for the Softmax function evaluation. Inspiration came from the numerically stable variance calculation online algorithm.</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="../attachments/ba540d94.png" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">ba540d94.png</figcaption>
+<p><img src="../attachments/ba540d94.png" class="img-fluid figure-img" style="width:60.0%"></p>
 </figure>
 </div>
 <p>Essentially, the algorithm keeps the maximum value <span class="math inline">\(m\)</span> and the normalization term <span class="math inline">\(d\)</span> as it iterates over elements of the input array. At each iteration it <strong>needs to adjust</strong> the normalizer <span class="math inline">\(d\)</span> to the new maximum <span class="math inline">\(m_j\)</span> and only then add new value to the normalizer.</p>
@@ -430,8 +427,7 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <p><strong>Roof-line模型</strong>就是为了解答这一问题而提出的，它能直观帮我们看到算法在硬件上能跑得多快，模型见下图。</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
-<p><img src="../attachments/15426dbd.png" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">15426dbd.png</figcaption>
+<p><img src="../attachments/15426dbd.png" class="img-fluid figure-img" style="width:60.0%"></p>
 </figure>
 </div>
 <p>如图，横坐标 <span class="math inline">\(I\)</span> 表示计算强度，满足 <span class="math inline">\(I=\frac{\pi_t}{\beta_t}\)</span> ；纵坐标 <span class="math inline">\(P\)</span> 表示算法运行在硬件上的性能。算法的运行性能<strong>不会超过硬件本身的计算上限</strong>，所以 <span class="math inline">\(P\)</span> 的最大值取到 <span class="math inline">\(\pi\)</span>。根据我们之前的分析，当 <span class="math inline">\(I&gt;\frac{\pi}{\beta}\)</span> 时，存在计算限制(Compute Bound)；当 <span class="math inline">\(I&lt;\frac{\pi}{\beta}\)</span> 时，存在内存限制(Memory Bound)。</p>
@@ -441,7 +437,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/ace8b864.png" class="img-fluid figure-img" style="width:80.0%"></p>
-<figcaption class="figure-caption">ace8b864.png</figcaption>
 </figure>
 </div>
 <p>在讲计算之前首先了解 GPU 的存储细节。上图最左是 FlashAttention 论文所绘制的硬件不同的存储类型、存储大小和带宽。一般来说，GPU 上的存储分类，可以按照是否在芯片上分为<strong>片上内存(on chip)</strong>和<strong>片下内存(off chip)</strong>。</p>
@@ -452,13 +447,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/0cc7e3db.png" class="img-fluid figure-img" style="width:50.0%"></p>
-<figcaption class="figure-caption">0cc7e3db.png</figcaption>
 </figure>
 </div>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/6826c3c0.png" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">6826c3c0.png</figcaption>
 </figure>
 </div>
 <p>从上图的硬件架构上看，越是靠近 SM 核心的存储，读写速度就越快。上图中 L1 Cache 则是 FlashAttention 中的 SRAM，为每个 SM 独占，L2 Cache 是所有 SM 共享，再往下就是 HMB。所以在算法计算中，如果读写全部在 SRAM 上，将达到 IO 速度的上限，计算自然就快了。</p>
@@ -471,7 +464,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/7e5428b9.png" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">7e5428b9.png</figcaption>
 </figure>
 </div>
 <p>Standard attention implementations materialize the matrices <span class="math inline">\(S\)</span> and <span class="math inline">\(P\)</span> to HBM, which <strong>takes <span class="math inline">\(O(N^2)\)</span> memory</strong>. Often <span class="math inline">\(N\gg d\)</span> (e.g., for GPT2, <span class="math inline">\(N=1024\)</span> and <span class="math inline">\(d=64\)</span>(<strong>single head dim</strong>)). We describe the standard attention implementation in Algorithm <code>0</code>. As some or most of the operations are <strong>memory-bound</strong> (e.g., softmax), the large number of memory accesses translates to slow wall-clock time.</p>
@@ -483,7 +475,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/718d7308.png" class="img-fluid figure-img" style="width:80.0%"></p>
-<figcaption class="figure-caption">718d7308.png</figcaption>
 </figure>
 </div>
 <p>同样对 FlashAttention 进行 IO 复杂度分析，<span class="math inline">\(M\)</span> 为单个流式处理器的 L1 Cache（大小约100KB，A100 中有 108 个 SM，每个 SM L1 Cache 是 192KB，总计约 20MB），<span class="math inline">\(d\)</span> 是 single head dim（一般是64/128）。</p>
@@ -493,7 +484,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/c8105e32.png" class="img-fluid figure-img" style="width:80.0%"></p>
-<figcaption class="figure-caption">c8105e32.png</figcaption>
 </figure>
 </div>
 <p>注意上图左侧中，Linformer Attention 和 OpenAI Sparse Attention 不是 <strong>exact</strong> Attention。</p>
@@ -571,7 +561,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/24972e88.png" class="img-fluid figure-img" style="width:50.0%"></p>
-<figcaption class="figure-caption">24972e88.png</figcaption>
 </figure>
 </div>
 <p>First, the existing systems suffer from internal and external memory fragmentation. To store the KV cache of a request in contiguous space, they <strong>pre-allocate</strong> a contiguous chunk of memory with the request’s maximum length(e.g., 2048 tokens).</p>
@@ -582,7 +571,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/c7d061fa.png" class="img-fluid figure-img"></p>
-<figcaption class="figure-caption">c7d061fa.png</figcaption>
 </figure>
 </div>
 <p>上图展示了三种不同的显存浪费的情况：</p>
@@ -605,7 +593,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/annimation0.gif" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">annimation0.gif</figcaption>
 </figure>
 </div>
 <p>上图演示的是最新一个 token <code>for</code> 对于已有的序列（可以是输入的 prompt）<code>Alan Turing is a computer scientist and mathematician renowned for</code> 做 Attention 的过程。图示中以 Block 分块管理显存，以达到用<strong>不连续</strong>代替连续的显存空间。</p>
@@ -617,7 +604,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/annimation1.gif" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">annimation1.gif</figcaption>
 </figure>
 </div>
 <p>PagedAttention 在实现上采用了 KV Cache Manager 维护了多张 Block table，表里存着 logical blocks 到 phsical blocks 的映射。并且，为了尽量消除 <code>internal fragmentation</code>，他实现了动态的显存分配管理。</p>
@@ -627,7 +613,6 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/annimation2.gif" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">annimation2.gif</figcaption>
 </figure>
 </div>
 <p>在 LLM 解码过程中，我们可能会采取多种解码方式扩大搜索空间，如 Parallel sampling、Beam Search 等。此类解码方式将会输出多个 candidates。有个直观的感受是，在多序列生成过程中，大概率会以一个<strong>树状</strong>的样式增长，因此有可能可以共享某些 KV Cache。然而在传统解码模式下，因为 KV Cache 分开存放在连续的显存空间，显存的占用将会线性增长，无法达成 KV Cache 的共享。</p>
@@ -635,14 +620,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/annimation3.gif" class="img-fluid figure-img" style="width:70.0%"></p>
-<figcaption class="figure-caption">annimation3.gif</figcaption>
 </figure>
 </div>
 <p>在 Beam Search 的场景下，则会管理一个树状结构，在最新时刻的解码结果出现后，可以将废弃的 Block 进行剪枝回收。如下图示例，Beam width 为4，虚线左侧是 <span class="math inline">\(t-1\)</span> 时刻的 KV Cache 占用情况，当 <span class="math inline">\(t\)</span> 时刻解码完成后，最新的 Block9~12 依赖的 KV Cache 全部来自 Block6 和 Block7，则 Block2、4、5、8 的显存将被回收。</p>
 <div class="quarto-figure quarto-figure-center">
 <figure class="figure">
 <p><img src="../attachments/fc7f0992.png" class="img-fluid figure-img" style="width:60.0%"></p>
-<figcaption class="figure-caption">fc7f0992.png</figcaption>
 </figure>
 </div>
 <p>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the <strong>earliest</strong> arrived requests are <strong>served first</strong> and the <strong>latest</strong> requests are <strong>preempted first</strong>。具体实现方式有:</p>
@@ -1273,7 +1256,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>where $x, y \in \mathbb{R}^V$   . The naive implementation (see algorithm <span class="in">`1`</span>) scans the input vector two times - one to calculate the normalization term $d_V$ and another to compute output values $y_i$ - effectively doing **three memory accesses** per vector element: two loads and one store.</span>
 <span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="al">![d20eb1b8.png](../attachments/d20eb1b8.png)</span>{width=70%}</span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/d20eb1b8.png)</span>{width=60% fig-align="center"}</span>
 <span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.2 SafeSoftmax</span></span>
 <span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a></span>
@@ -1281,7 +1264,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>$$ y_i = \frac{e^{x_i-\max_{k=1}^{V}x_k}}{\sum_{j=1}^{V} e^{x_j-\max_{k=1}^{V}x_k}}  \tag{2}$$</span>
 <span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="al">![de4cc3d9.png](../attachments/de4cc3d9.png)</span>{width=70%}</span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/de4cc3d9.png)</span>{width=60% fig-align="center"}</span>
 <span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>But Safe Softmax does three passes over input vector: The first one calculates the maximum value $m_V$ , the second one - normalization term $d_V$ , and the third one - final values $y_i$, see algorithm <span class="in">`2`</span>; This results in **4 memory access** per vector element overall.</span>
 <span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a></span>
@@ -1289,7 +1272,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>The algorithm <span class="in">`3`</span> calculates both the maximum value m and the normalization term $d$ in a **single pass** over input vector with negligible additional cost of two operations per vector element. It **reduces memory accesses** from 4 down to 3 per vector element for the Softmax function evaluation. Inspiration came from the numerically stable variance calculation online algorithm.</span>
 <span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a><span class="al">![ba540d94.png](../attachments/ba540d94.png)</span>{width=70%}</span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/ba540d94.png)</span>{width=60% fig-align="center"}</span>
 <span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>Essentially, the algorithm keeps the maximum value $m$ and the normalization term $d$ as it iterates over elements of the input array. At each iteration it **needs to adjust** the normalizer $d$ to the new maximum $m_j$ and only then add new value to the normalizer.</span>
 <span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a></span>
@@ -1383,22 +1366,22 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a>**Roof-line模型**就是为了解答这一问题而提出的，它能直观帮我们看到算法在硬件上能跑得多快，模型见下图。</span>
 <span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="al">![15426dbd.png](../attachments/15426dbd.png)</span>{width=70%}</span>
+<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/15426dbd.png)</span>{width=60% fig-align="center"}</span>
 <span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a>如图，横坐标 $I$ 表示计算强度，满足 $I=\frac{\pi_t}{\beta_t}$ ；纵坐标 $P$ 表示算法运行在硬件上的性能。算法的运行性能**不会超过硬件本身的计算上限**，所以 $P$ 的最大值取到 $\pi$。根据我们之前的分析，当 $I&gt;\frac{\pi}{\beta}$ 时，存在计算限制(Compute Bound)；当 $I&lt;\frac{\pi}{\beta}$ 时，存在内存限制(Memory Bound)。</span>
 <span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.2 GPU Memory Layout</span></span>
 <span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a><span class="al">![ace8b864.png](../attachments/ace8b864.png)</span>{width=80%}</span>
+<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/ace8b864.png)</span>{width=80% fig-align="center"}</span>
 <span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a>在讲计算之前首先了解 GPU 的存储细节。上图最左是 FlashAttention 论文所绘制的硬件不同的存储类型、存储大小和带宽。一般来说，GPU 上的存储分类，可以按照是否在芯片上分为**片上内存(on chip)**和**片下内存(off chip)**。</span>
 <span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>片上内存：主要用于缓存（cache）及少量特殊存储单元（例如texture），其特点是**存储空间小，但带宽大**。对应到上图中，SRAM 就属于片上内存，它的存储空间只有 <span class="in">`20MB`</span>(SM 数量<span class="sc">\*</span>L1 Cache 容量)，但是带宽可以达到 <span class="in">`19TB/s`</span>。</span>
 <span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>片下内存：主要用于全局存储（global memory），即我们常说的**显存**，其特点是**存储空间大，但带宽小**，对应到上图中，HBM 就属于片下内存，它的存储空间有 <span class="in">`40GB`</span>(A100 40GB)，但带宽相比于 SRAM 就小得多，只有 <span class="in">`1.5TB/s`</span>。</span>
 <span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a><span class="al">![0cc7e3db.png](../attachments/0cc7e3db.png)</span>{width=50%}</span>
+<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/0cc7e3db.png)</span>{width=50% fig-align="center"}</span>
 <span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a><span class="al">![6826c3c0.png](../attachments/6826c3c0.png)</span>{width=70%}</span>
+<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/6826c3c0.png)</span>{width=70% fig-align="center"}</span>
 <span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a>从上图的硬件架构上看，越是靠近 SM 核心的存储，读写速度就越快。上图中 L1 Cache 则是 FlashAttention 中的 SRAM，为每个 SM 独占，L2 Cache 是所有 SM 共享，再往下就是 HMB。所以在算法计算中，如果读写全部在 SRAM 上，将达到 IO 速度的上限，计算自然就快了。</span>
 <span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a></span>
@@ -1411,7 +1394,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>标准 Attention 的算法如下，所有中间结果储存在 HBM，空间复杂度最高的是 $O(N^2)$ 的 $S$ 和 $P$，对于 HBM 的 IO(读写) 复杂度是 $O(Nd+N^2)$</span>
 <span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a><span class="al">![7e5428b9.png](../attachments/7e5428b9.png)</span>{width=70%}</span>
+<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/7e5428b9.png)</span>{width=70% fig-align="center"}</span>
 <span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a>Standard attention implementations materialize the matrices $S$ and $P$ to HBM, which **takes $O(N^2)$ memory**. Often $N\gg d$ (e.g., for GPT2, $N=1024$ and $d=64$(**single head dim**)). We describe the standard attention implementation in Algorithm `0`. As some or most of the operations are **memory-bound** (e.g., softmax), the large number of memory accesses translates to slow wall-clock time.</span>
 <span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a></span>
@@ -1421,7 +1404,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a>FlashAttention 的核心理念是尽可能少读写 HBM，在具体实现上采用了 **tiling**（分块）和 recompute（重新计算 $S$ 和 $P$，因为 forward 过程中不存储 $O(N^2)$ 的 Attention Scores，但是反向需要用到，所以采用了重新计算。）</span>
 <span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a><span class="al">![718d7308.png](../attachments/718d7308.png)</span>{width=80%}</span>
+<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/718d7308.png)</span>{width=80% fig-align="center"}</span>
 <span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>同样对 FlashAttention 进行 IO 复杂度分析，$M$ 为单个流式处理器的 L1 Cache（大小约100KB，A100 中有 108 个 SM，每个 SM L1 Cache 是 192KB，总计约 20MB），$d$ 是 single head dim（一般是64/128）。</span>
 <span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a></span>
@@ -1432,7 +1415,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a>同时，因为不需要存储 $S$ 和 $P$（$O(N^2)$），$m$ 和 $l$ 的开销小（$O(N)$），空间复杂度从标准的 $O(N^2d)$ 降低到了 $O(Nd)$。</span>
 <span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a><span class="al">![c8105e32.png](../attachments/c8105e32.png)</span>{width=80%}</span>
+<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/c8105e32.png)</span>{width=80% fig-align="center"}</span>
 <span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>注意上图左侧中，Linformer Attention 和 OpenAI Sparse Attention 不是 **exact** Attention。</span>
 <span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a></span>
@@ -1506,7 +1489,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-282"><a href="#cb8-282" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-283"><a href="#cb8-283" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.1 KV Cache</span></span>
 <span id="cb8-284"><a href="#cb8-284" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-285"><a href="#cb8-285" aria-hidden="true" tabindex="-1"></a><span class="al">![24972e88.png](../attachments/24972e88.png)</span>{width=50%}</span>
+<span id="cb8-285"><a href="#cb8-285" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/24972e88.png)</span>{width=50% fig-align="center"}</span>
 <span id="cb8-286"><a href="#cb8-286" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-287"><a href="#cb8-287" aria-hidden="true" tabindex="-1"></a>First, the existing systems suffer from internal and external memory fragmentation. To store the KV cache of a request in contiguous space, they **pre-allocate** a contiguous chunk of memory with the request’s maximum length(e.g., 2048 tokens).</span>
 <span id="cb8-288"><a href="#cb8-288" aria-hidden="true" tabindex="-1"></a></span>
@@ -1514,7 +1497,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-290"><a href="#cb8-290" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-291"><a href="#cb8-291" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.2 Memory Fragmentation</span></span>
 <span id="cb8-292"><a href="#cb8-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-293"><a href="#cb8-293" aria-hidden="true" tabindex="-1"></a><span class="al">![c7d061fa.png](../attachments/c7d061fa.png)</span></span>
+<span id="cb8-293"><a href="#cb8-293" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/c7d061fa.png)</span>{fig-align="center"}</span>
 <span id="cb8-294"><a href="#cb8-294" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-295"><a href="#cb8-295" aria-hidden="true" tabindex="-1"></a>上图展示了三种不同的显存浪费的情况：</span>
 <span id="cb8-296"><a href="#cb8-296" aria-hidden="true" tabindex="-1"></a></span>
@@ -1533,7 +1516,7 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-309"><a href="#cb8-309" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-310"><a href="#cb8-310" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.1 Memory Block</span></span>
 <span id="cb8-311"><a href="#cb8-311" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-312"><a href="#cb8-312" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation0.gif](../attachments/annimation0.gif)</span>{width=70%}</span>
+<span id="cb8-312"><a href="#cb8-312" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/annimation0.gif)</span>{width=70% fig-align="center"}</span>
 <span id="cb8-313"><a href="#cb8-313" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-314"><a href="#cb8-314" aria-hidden="true" tabindex="-1"></a>上图演示的是最新一个 token <span class="in">`for`</span> 对于已有的序列（可以是输入的 prompt）<span class="in">`Alan Turing is a computer scientist and mathematician renowned for`</span> 做 Attention 的过程。图示中以 Block 分块管理显存，以达到用**不连续**代替连续的显存空间。</span>
 <span id="cb8-315"><a href="#cb8-315" aria-hidden="true" tabindex="-1"></a></span>
@@ -1543,23 +1526,23 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-319"><a href="#cb8-319" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-320"><a href="#cb8-320" aria-hidden="true" tabindex="-1"></a>Because the blocks do not need to be contiguous in memory, we can manage the keys and values in a more flexible way as in OS’s virtual memory: one can think of blocks as pages, tokens as bytes, and sequences as processes. The contiguous **logical blocks** of a sequence are mapped to non-contiguous **physical blocks** via a **block table**. The physical blocks are allocated on demand as new tokens are generated.</span>
 <span id="cb8-321"><a href="#cb8-321" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-322"><a href="#cb8-322" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation1.gif](../attachments/annimation1.gif)</span>{width=70%}</span>
+<span id="cb8-322"><a href="#cb8-322" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/annimation1.gif)</span>{width=70% fig-align="center"}</span>
 <span id="cb8-323"><a href="#cb8-323" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-324"><a href="#cb8-324" aria-hidden="true" tabindex="-1"></a>PagedAttention 在实现上采用了 KV Cache Manager 维护了多张 Block table，表里存着 logical blocks 到 phsical blocks 的映射。并且，为了尽量消除 <span class="in">`internal fragmentation`</span>，他实现了动态的显存分配管理。</span>
 <span id="cb8-325"><a href="#cb8-325" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-326"><a href="#cb8-326" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.3 Memory Sharing</span></span>
 <span id="cb8-327"><a href="#cb8-327" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-328"><a href="#cb8-328" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation2.gif](../attachments/annimation2.gif)</span>{width=70%}</span>
+<span id="cb8-328"><a href="#cb8-328" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/annimation2.gif)</span>{width=70% fig-align="center"}</span>
 <span id="cb8-329"><a href="#cb8-329" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-330"><a href="#cb8-330" aria-hidden="true" tabindex="-1"></a>在 LLM 解码过程中，我们可能会采取多种解码方式扩大搜索空间，如 Parallel sampling、Beam Search 等。此类解码方式将会输出多个 candidates。有个直观的感受是，在多序列生成过程中，大概率会以一个**树状**的样式增长，因此有可能可以共享某些 KV Cache。然而在传统解码模式下，因为 KV Cache 分开存放在连续的显存空间，显存的占用将会线性增长，无法达成 KV Cache 的共享。 </span>
 <span id="cb8-331"><a href="#cb8-331" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-332"><a href="#cb8-332" aria-hidden="true" tabindex="-1"></a>PagedAttention 以引用计数和 Copy-on-Write 的特性实现了多序列生成的 KV Cache 共享具体，Parallel sampling 的解码流程如下图所示：</span>
 <span id="cb8-333"><a href="#cb8-333" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-334"><a href="#cb8-334" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation3.gif](../attachments/annimation3.gif)</span>{width=70%}</span>
+<span id="cb8-334"><a href="#cb8-334" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/annimation3.gif)</span>{width=70% fig-align="center"}</span>
 <span id="cb8-335"><a href="#cb8-335" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-336"><a href="#cb8-336" aria-hidden="true" tabindex="-1"></a>在 Beam Search 的场景下，则会管理一个树状结构，在最新时刻的解码结果出现后，可以将废弃的 Block 进行剪枝回收。如下图示例，Beam width 为4，虚线左侧是 $t-1$ 时刻的 KV Cache 占用情况，当 $t$ 时刻解码完成后，最新的 Block9~12 依赖的 KV Cache 全部来自 Block6 和 Block7，则 Block2、4、5、8 的显存将被回收。</span>
 <span id="cb8-337"><a href="#cb8-337" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-338"><a href="#cb8-338" aria-hidden="true" tabindex="-1"></a><span class="al">![fc7f0992.png](../attachments/fc7f0992.png)</span>{width=60%}</span>
+<span id="cb8-338"><a href="#cb8-338" aria-hidden="true" tabindex="-1"></a><span class="al">![](../attachments/fc7f0992.png)</span>{width=60% fig-align="center"}</span>
 <span id="cb8-339"><a href="#cb8-339" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-340"><a href="#cb8-340" aria-hidden="true" tabindex="-1"></a>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the **earliest** arrived requests are **served first** and the **latest** requests are **preempted first**。具体实现方式有:</span>
 <span id="cb8-341"><a href="#cb8-341" aria-hidden="true" tabindex="-1"></a></span>
