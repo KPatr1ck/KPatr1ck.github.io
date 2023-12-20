@@ -203,6 +203,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   <li><a href="#pagedattention-1" id="toc-pagedattention-1" class="nav-link" data-scroll-target="#pagedattention-1">4.3 PagedAttention</a></li>
   </ul></li>
   <li><a href="#抛砖引玉" id="toc-抛砖引玉" class="nav-link" data-scroll-target="#抛砖引玉">5. 抛砖引玉</a></li>
+  <li><a href="#附录测试脚本" id="toc-附录测试脚本" class="nav-link" data-scroll-target="#附录测试脚本">6. 附录：测试脚本</a>
+  <ul class="collapse">
+  <li><a href="#online_softmax.py" id="toc-online_softmax.py" class="nav-link" data-scroll-target="#online_softmax.py">6.1 online_softmax.py</a></li>
+  <li><a href="#flash_attention.py" id="toc-flash_attention.py" class="nav-link" data-scroll-target="#flash_attention.py">6.2 flash_attention.py</a></li>
+  </ul></li>
   </ul>
 </nav>
     </div>
@@ -655,10 +660,279 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <li>投机采样与MoE</li>
 </ul>
 <p><strong>一起学习、讨论和进步。</strong></p>
+</section>
+<section id="附录测试脚本" class="level2">
+<h2 class="anchored" data-anchor-id="附录测试脚本">6. 附录：测试脚本</h2>
+<p>附上2个完整的可执行脚本，有兴趣的可以运行并查看对比结果。 由于只展示理论的计算流程，在CPU单线程上做的模拟计算，实际没有任何的加速。</p>
+<section id="online_softmax.py" class="level3">
+<h3 class="anchored" data-anchor-id="online_softmax.py">6.1 online_softmax.py</h3>
+<div class="cell" data-execution_count="4">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> safe_softmax(x: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.<span class="bu">max</span>(x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.expand_dims(m, <span class="dv">1</span>)</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.<span class="bu">sum</span>(np.exp(x <span class="op">-</span> m), axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.exp(x <span class="op">-</span> m) <span class="op">/</span> d</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> y</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> online_softmax(x: np.ndarray, chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>    num_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(x.shape[<span class="dv">1</span>] <span class="op">/</span> chunk_size))</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    softmax <span class="op">=</span> np.zeros_like(x)</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_steps):</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get chunk data</span></span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>        chunk_x <span class="op">=</span> x[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size]</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 1. Perform local softmax on chunk data.</span></span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>        chunk_m <span class="op">=</span> np.<span class="bu">max</span>(chunk_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>        chunk_f <span class="op">=</span> np.exp(chunk_x <span class="op">-</span> np.expand_dims(chunk_m, <span class="dv">1</span>))</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>        chunk_d <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>        chunk_softmax <span class="op">=</span> chunk_f <span class="op">/</span> np.expand_dims(chunk_d, <span class="dv">1</span>)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 2. Get new m_x and l_x.</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>        m_new <span class="op">=</span> np.maximum(m, chunk_m)</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>        d_new <span class="op">=</span> d <span class="op">*</span> np.exp(m <span class="op">-</span> m_new) <span class="op">+</span> chunk_d <span class="op">*</span> np.exp(chunk_m <span class="op">-</span> m_new)</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 3. Rescale(OLD + NEW) and concat(NEW) softmax values.</span></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>        softmax <span class="op">=</span> (</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>            softmax</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="dv">1</span>)</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale and concat</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>        softmax[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size] <span class="op">=</span> (</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>            chunk_softmax</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(chunk_d, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(chunk_m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 4. Update m_x and l_x from CURRENT global info.</span></span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>        m <span class="op">=</span> m_new</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d_new</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> softmax</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_online_softmax():</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>    BATCH_SIZE <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">4</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((BATCH_SIZE, SEQ_LENGTH))</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(x)</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Safe Softmax</span></span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"safe_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> safe_softmax(x)</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y1)</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Online Softmax</span></span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"online_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> online_softmax(x)</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y2)</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(np.allclose(y1, y2))</span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>    test_online_softmax()</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>    main()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>==========Input==========
+[[0.5488135  0.71518937 0.60276338 0.54488318]
+ [0.4236548  0.64589411 0.43758721 0.891773  ]]
+==========safe_softmax==========
+[[0.23626553 0.27903359 0.24936213 0.23533875]
+ [0.20576613 0.25697519 0.20865301 0.32860566]]
+==========online_softmax==========
+[[0.23626553 0.27903359 0.24936213 0.23533875]
+ [0.20576613 0.25697519 0.20865301 0.32860566]]
+==========Assertion==========
+True</code></pre>
+</div>
+</div>
+</section>
+<section id="flash_attention.py" class="level3">
+<h3 class="anchored" data-anchor-id="flash_attention.py">6.2 flash_attention.py</h3>
+<div class="cell" data-execution_count="5">
+<details>
+<summary>Code</summary>
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.nn.functional <span class="im">import</span> scaled_dot_product_attention</span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a><span class="co"># from online_softmax import safe_softmax</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention_from_torch(</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> (</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>        scaled_dot_product_attention(</span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>            torch.from_numpy(Q), torch.from_numpy(K), torch.from_numpy(V), scale<span class="op">=</span><span class="fl">1.0</span></span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a>        .cpu()</span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>        .numpy()</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb6-20"><a href="#cb6-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-21"><a href="#cb6-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb6-23"><a href="#cb6-23" aria-hidden="true" tabindex="-1"></a>    S <span class="op">=</span> np.matmul(Q, K.T)  <span class="co"># Dot-Product Attention</span></span>
+<span id="cb6-24"><a href="#cb6-24" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> safe_softmax(S)  <span class="co"># (N, N)</span></span>
+<span id="cb6-25"><a href="#cb6-25" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.matmul(P, V)  <span class="co"># (N, d)</span></span>
+<span id="cb6-26"><a href="#cb6-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-27"><a href="#cb6-27" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb6-28"><a href="#cb6-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-30"><a href="#cb6-30" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flash_attention(</span>
+<span id="cb6-31"><a href="#cb6-31" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray, Br: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>, Bc: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb6-32"><a href="#cb6-32" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb6-33"><a href="#cb6-33" aria-hidden="true" tabindex="-1"></a>    N, d <span class="op">=</span> Q.shape</span>
+<span id="cb6-34"><a href="#cb6-34" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.zeros_like(Q)  <span class="co"># Alloc memory for `O` in HBM</span></span>
+<span id="cb6-35"><a href="#cb6-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-36"><a href="#cb6-36" aria-hidden="true" tabindex="-1"></a>    outer_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Bc))</span>
+<span id="cb6-37"><a href="#cb6-37" aria-hidden="true" tabindex="-1"></a>    inner_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Br))</span>
+<span id="cb6-38"><a href="#cb6-38" aria-hidden="true" tabindex="-1"></a>    m_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb6-39"><a href="#cb6-39" aria-hidden="true" tabindex="-1"></a>    l_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb6-40"><a href="#cb6-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-41"><a href="#cb6-41" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(outer_loop_steps):</span>
+<span id="cb6-42"><a href="#cb6-42" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(inner_loop_steps):</span>
+<span id="cb6-43"><a href="#cb6-43" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Get chunk data</span></span>
+<span id="cb6-44"><a href="#cb6-44" aria-hidden="true" tabindex="-1"></a>            chunk_q <span class="op">=</span> Q[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]  <span class="co"># (Br, d)</span></span>
+<span id="cb6-45"><a href="#cb6-45" aria-hidden="true" tabindex="-1"></a>            chunk_k <span class="op">=</span> K[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb6-46"><a href="#cb6-46" aria-hidden="true" tabindex="-1"></a>            chunk_v <span class="op">=</span> V[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb6-47"><a href="#cb6-47" aria-hidden="true" tabindex="-1"></a>            m_x <span class="op">=</span> m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb6-48"><a href="#cb6-48" aria-hidden="true" tabindex="-1"></a>            l_x <span class="op">=</span> l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb6-49"><a href="#cb6-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-50"><a href="#cb6-50" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 1. Perform attention on block data.</span></span>
+<span id="cb6-51"><a href="#cb6-51" aria-hidden="true" tabindex="-1"></a>            chunk_s <span class="op">=</span> np.matmul(chunk_q, chunk_k.T)  <span class="co"># (Br, Bc)</span></span>
+<span id="cb6-52"><a href="#cb6-52" aria-hidden="true" tabindex="-1"></a>            chunk_m_x <span class="op">=</span> np.<span class="bu">max</span>(chunk_s, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb6-53"><a href="#cb6-53" aria-hidden="true" tabindex="-1"></a>            chunk_f_x <span class="op">=</span> np.exp(chunk_s <span class="op">-</span> np.expand_dims(chunk_m_x, <span class="dv">1</span>))</span>
+<span id="cb6-54"><a href="#cb6-54" aria-hidden="true" tabindex="-1"></a>            chunk_l_x <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb6-55"><a href="#cb6-55" aria-hidden="true" tabindex="-1"></a>            chunk_p <span class="op">=</span> chunk_f_x <span class="op">/</span> np.expand_dims(chunk_l_x, <span class="dv">1</span>)</span>
+<span id="cb6-56"><a href="#cb6-56" aria-hidden="true" tabindex="-1"></a>            chunk_o <span class="op">=</span> np.matmul(chunk_p, chunk_v)</span>
+<span id="cb6-57"><a href="#cb6-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-58"><a href="#cb6-58" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 2. Update `GLOBAL` stats.</span></span>
+<span id="cb6-59"><a href="#cb6-59" aria-hidden="true" tabindex="-1"></a>            m_x_new <span class="op">=</span> np.maximum(m_x, chunk_m_x)</span>
+<span id="cb6-60"><a href="#cb6-60" aria-hidden="true" tabindex="-1"></a>            l_x_new <span class="op">=</span> l_x <span class="op">*</span> np.exp(m_x <span class="op">-</span> m_x_new) <span class="op">+</span> chunk_l_x <span class="op">*</span> np.exp(</span>
+<span id="cb6-61"><a href="#cb6-61" aria-hidden="true" tabindex="-1"></a>                chunk_m_x <span class="op">-</span> m_x_new</span>
+<span id="cb6-62"><a href="#cb6-62" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-63"><a href="#cb6-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-64"><a href="#cb6-64" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 3. Rescale and update `GLOBAL` output.</span></span>
+<span id="cb6-65"><a href="#cb6-65" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Rescale(Old)</span></span>
+<span id="cb6-66"><a href="#cb6-66" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> (</span>
+<span id="cb6-67"><a href="#cb6-67" aria-hidden="true" tabindex="-1"></a>                O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb6-68"><a href="#cb6-68" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(l_x, <span class="dv">1</span>)</span>
+<span id="cb6-69"><a href="#cb6-69" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb6-70"><a href="#cb6-70" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="dv">1</span>)</span>
+<span id="cb6-71"><a href="#cb6-71" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-72"><a href="#cb6-72" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Update(New)</span></span>
+<span id="cb6-73"><a href="#cb6-73" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">+=</span> (</span>
+<span id="cb6-74"><a href="#cb6-74" aria-hidden="true" tabindex="-1"></a>                chunk_o</span>
+<span id="cb6-75"><a href="#cb6-75" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(chunk_m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb6-76"><a href="#cb6-76" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb6-77"><a href="#cb6-77" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb6-78"><a href="#cb6-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-79"><a href="#cb6-79" aria-hidden="true" tabindex="-1"></a>            m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> m_x_new</span>
+<span id="cb6-80"><a href="#cb6-80" aria-hidden="true" tabindex="-1"></a>            l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> l_x_new</span>
+<span id="cb6-81"><a href="#cb6-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-82"><a href="#cb6-82" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb6-83"><a href="#cb6-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-84"><a href="#cb6-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-85"><a href="#cb6-85" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_flash_attention():</span>
+<span id="cb6-86"><a href="#cb6-86" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">128</span></span>
+<span id="cb6-87"><a href="#cb6-87" aria-hidden="true" tabindex="-1"></a>    EMBEDDING_DIM <span class="op">=</span> <span class="dv">768</span></span>
+<span id="cb6-88"><a href="#cb6-88" aria-hidden="true" tabindex="-1"></a>    HIDDEN_DIM <span class="op">=</span> EMBEDDING_DIM</span>
+<span id="cb6-89"><a href="#cb6-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-90"><a href="#cb6-90" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb6-91"><a href="#cb6-91" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((SEQ_LENGTH, EMBEDDING_DIM))</span>
+<span id="cb6-92"><a href="#cb6-92" aria-hidden="true" tabindex="-1"></a>    w_q <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb6-93"><a href="#cb6-93" aria-hidden="true" tabindex="-1"></a>    w_k <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb6-94"><a href="#cb6-94" aria-hidden="true" tabindex="-1"></a>    w_v <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb6-95"><a href="#cb6-95" aria-hidden="true" tabindex="-1"></a>    Q, K, V <span class="op">=</span> [np.matmul(x, w) <span class="cf">for</span> w <span class="kw">in</span> [w_q, w_k, w_v]]</span>
+<span id="cb6-96"><a href="#cb6-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-97"><a href="#cb6-97" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input Shape"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb6-98"><a href="#cb6-98" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"x.shape: </span><span class="sc">{</span>x<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-99"><a href="#cb6-99" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_q.shape: </span><span class="sc">{</span>w_q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-100"><a href="#cb6-100" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_k.shape: </span><span class="sc">{</span>w_k<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-101"><a href="#cb6-101" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_v.shape: </span><span class="sc">{</span>w_v<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-102"><a href="#cb6-102" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Q.shape: </span><span class="sc">{</span>Q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-103"><a href="#cb6-103" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"K.shape: </span><span class="sc">{</span>K<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-104"><a href="#cb6-104" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"V.shape: </span><span class="sc">{</span>V<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-105"><a href="#cb6-105" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-106"><a href="#cb6-106" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Torch] Scale Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb6-107"><a href="#cb6-107" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> self_attention_from_torch(Q, K, V)</span>
+<span id="cb6-108"><a href="#cb6-108" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1.shape: </span><span class="sc">{</span>y1<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-109"><a href="#cb6-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-110"><a href="#cb6-110" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Vanilla Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb6-111"><a href="#cb6-111" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> self_attention(Q, K, V)</span>
+<span id="cb6-112"><a href="#cb6-112" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y2.shape: </span><span class="sc">{</span>y2<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-113"><a href="#cb6-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-114"><a href="#cb6-114" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Flash Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb6-115"><a href="#cb6-115" aria-hidden="true" tabindex="-1"></a>    y3 <span class="op">=</span> flash_attention(Q, K, V)</span>
+<span id="cb6-116"><a href="#cb6-116" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y3.shape: </span><span class="sc">{</span>y3<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-117"><a href="#cb6-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-118"><a href="#cb6-118" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
+<span id="cb6-119"><a href="#cb6-119" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb6-120"><a href="#cb6-120" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y2: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y2)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-121"><a href="#cb6-121" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y3: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y3)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb6-122"><a href="#cb6-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-123"><a href="#cb6-123" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-124"><a href="#cb6-124" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb6-125"><a href="#cb6-125" aria-hidden="true" tabindex="-1"></a>    test_flash_attention()</span>
+<span id="cb6-126"><a href="#cb6-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-127"><a href="#cb6-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-128"><a href="#cb6-128" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb6-129"><a href="#cb6-129" aria-hidden="true" tabindex="-1"></a>    main()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</details>
+<div class="cell-output cell-output-stdout">
+<pre><code>==========Input Shape==========
+x.shape: (128, 768)
+w_q.shape: (768, 768)
+w_k.shape: (768, 768)
+w_v.shape: (768, 768)
+Q.shape: (128, 768)
+K.shape: (128, 768)
+V.shape: (128, 768)
+==========[Torch] Scale Dot-Product Attention==========
+y1.shape: (128, 768)
+==========[Numpy] Vanilla Dot-Product Attention==========
+y2.shape: (128, 768)
+==========[Numpy] Flash Attention==========
+y3.shape: (128, 768)
+==========Assertion==========
+y1 vs y2: True
+y1 vs y3: True</code></pre>
+</div>
+</div>
 
 
 <!-- -->
 
+</section>
 </section>
 
 </main> <!-- /main -->
@@ -946,362 +1220,596 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   }
 });
 </script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
-<div class="sourceCode" id="cb4" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "FlashAttention 和 PagedAttention"</span></span>
-<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
-<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a><span class="fu">## 0. 参考文献</span></span>
-<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">8 May 2018</span><span class="co">]</span>Online normalizer calculation for softmax](https://arxiv.org/abs/1805.02867)</span>
-<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">27 May 2022</span><span class="co">]</span>FlashAttention: Fast and Memory-Efficient Exact Attention</span>
-<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>with IO-Awareness](https://arxiv.org/abs/2205.14135)</span>
-<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">17 Jul 2023</span><span class="co">]</span>FlashAttention-2:</span>
-<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>Faster Attention with Better Parallelism and Work Partitioning](https://arxiv.org/abs/2307.08691)</span>
-<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">12 Sep 2023</span><span class="co">]</span>Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180)</span>
-<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">NLP（十七）：从 FlashAttention 到 PagedAttention, 如何进一步优化 Attention 性能</span><span class="co">](https://zhuanlan.zhihu.com/p/638468472)</span></span>
-<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">NLP（十八）：LLM 的推理优化技术纵览</span><span class="co">](https://zhuanlan.zhihu.com/p/642412124)</span></span>
-<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention</span><span class="co">](https://blog.vllm.ai/2024/06/20/vllm.html)</span></span>
-<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">FlashAttention 的速度优化原理是怎样的？</span><span class="co">](https://www.zhihu.com/question/611236756/answer/3132304304)</span></span>
-<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">一心二用的Online Softmax</span><span class="co">](https://zhuanlan.zhihu.com/p/638788074)</span></span>
-<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">图解大模型计算加速系列：FlashAttention V1，从硬件到计算逻辑 - 知乎</span><span class="co">](https://zhuanlan.zhihu.com/p/669926191)</span></span>
-<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1. Overview</span></span>
-<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>|Term | 是什么| 用在哪里| 技术亮点|</span>
-<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>|:---|:---|:---|:---|</span>
-<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>|Softmax | - | - | - |</span>
-<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>|SafeSoftmax | 为了防止 Softmax 计算过程中 exp 函数出现数值上下溢的情况，提出的一种数值处理方案 | Torch,TF,Paddle 等框架，嵌入至绝大多数模型 | 数值处理，指数部分减去原始向量的 max 值。 |</span>
-<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>|OnlineSoftmax | Softmax 的一种在线更新的计算方法 | 任何需要计算 Softmax 的场景 | 降低对原始向量的遍历次数，计算速度加快。 |</span>
-<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>|FlashAttention | 一种 **精确的**（非近似） Attention 的加速算法 | 所有用到 Attention OP 的模型，包括不限于类 Bert，类 GPT 等模型。 | 结合 GPU Memory 的硬件 Layout，基于 Online Softmax 对 Attention OP 进行 **精细化** 优化。不降 FLOPs，降低 HBM 读写次数和算子融合达到加速效果。&lt;br&gt;时间复杂度 **不变**，空间复杂度从 $O(N^2)$ 降低至 $O(N)$。 |</span>
-<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>|FlashAttention-2 | 基于 FlashAttention 算法，提升 FlashAttention 的计算效率 | 与 FlashAttention 一致 | FlashAttention 计算提效，提升了非 matmul 的 FLOPs，引入了更好的并行化计算方式和内存复用。 |</span>
-<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>|PagedAttention | 一种提升模型服务 **吞吐量** 的算法，提升批量计算时显存的利用效率 | vLLM 加速框架的核心技术，用于各种用到用到 Decoder 模型的服务中，适用于市面上各类 LLM | LLM 推理框架（如 FT 和 Orca）在批量推理时，由于用于存储 KV Cache 的显存需要提前分配，并针对每一个序列分配在连续的显存空间上，导致存在大量的碎片（存在于 **序列内** 和 **序列间**）。<span class="kw">&lt;br&gt;</span>PagedAttention 引入内存分页管理的思想，用一个 Scheduler 单例，以 Block 为单位动态地分配显存，提升显存利用率（Batch 计算中复用，Decode 过程中剪枝等），从而加速批量计算，提升模型服务的吞吐量。 |</span>
-<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>: {tbl-colwidths="<span class="co">[</span><span class="ot">10, 20, 20, 50</span><span class="co">]</span>"}</span>
-<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2. OnlineSoftmax</span></span>
-<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.1 Softmax</span></span>
-<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>$$ y = softmax(x) $$</span>
-<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>$$ y_i = \frac{e^{x_i}}{\sum_{j=1}^{V} e^{x_j}}  \tag{1}$$</span>
-<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>where $x, y \in \mathbb{R}^V$   . The naive implementation (see algorithm <span class="in">`1`</span>) scans the input vector two times - one to calculate the normalization term $d_V$ and another to compute output values $y_i$ - effectively doing **three memory accesses** per vector element: two loads and one store.</span>
-<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a><span class="al">![d20eb1b8.png](../attachments/d20eb1b8.png)</span>{width=70%}</span>
-<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.2 SafeSoftmax</span></span>
-<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>Unfortunately, on real hardware, where the range of numbers represented is limited, the line <span class="in">`3`</span> of the algorithm <span class="in">`1`</span> can **overflow or underflow due to the exponent**. There is a safe form of <span class="in">`(1)`</span>, which is immune to this problem:</span>
-<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>$$ y_i = \frac{e^{x_i-\max_{k=1}^{V}x_k}}{\sum_{j=1}^{V} e^{x_j-\max_{k=1}^{V}x_k}}  \tag{2}$$</span>
-<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a><span class="al">![de4cc3d9.png](../attachments/de4cc3d9.png)</span>{width=70%}</span>
-<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>But Safe Softmax does three passes over input vector: The first one calculates the maximum value $m_V$ , the second one - normalization term $d_V$ , and the third one - final values $y_i$, see algorithm <span class="in">`2`</span>; This results in **4 memory access** per vector element overall.</span>
-<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.3 OnlineSoftmax</span></span>
-<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>The algorithm <span class="in">`3`</span> calculates both the maximum value m and the normalization term $d$ in a **single pass** over input vector with negligible additional cost of two operations per vector element. It **reduces memory accesses** from 4 down to 3 per vector element for the Softmax function evaluation. Inspiration came from the numerically stable variance calculation online algorithm.</span>
-<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a><span class="al">![ba540d94.png](../attachments/ba540d94.png)</span>{width=70%}</span>
-<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>Essentially, the algorithm keeps the maximum value $m$ and the normalization term $d$ as it iterates over elements of the input array. At each iteration it **needs to adjust** the normalizer $d$ to the new maximum $m_j$ and only then add new value to the normalizer.</span>
-<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>这里需要注意的点在于，$m_j$ 和 $d_j$ 是在同一遍 Loop 中实时更新的，$m_j$ 求 max，很容易更新；$d_j$ 是指数项求和，在 Loop 中一旦发生最大值更新，即 $m_j \ne m_{j-1}$ ，$d_{j-1}$ 则需要进行一个指数项的缩放，其**数值**为 $e^{m_{j-1}-m_j}$。</span>
-<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>实际上这里还可以继续优化，把 $y$ 的计算也放在第一遍 Loop 中，如果这么做，每一次 iter 需要更新的值是 $<span class="sc">\{</span>y_1, y_2...y_{j-1}<span class="sc">\}</span>$，然后拼接上最新的 ${y_j}$，缩放的方式需要同时考虑分子的 $m$ 和分母中的 $v$，其**数值**为 $\frac{d_{j-1} * e^{m_{j-1}-m_j}}{d_j}$。(注意针对 $y$ 的缩放和针对 $d$ 的缩放的差异)</span>
-<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.4 代码实现</span></span>
-<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a>OnlineSoftmax实现，如 <span class="in">`2.3`</span> 最后的结论，用单 Loop 完成 SafeSoftmax 的数值计算，且支持 chunk 内并行。</span>
-<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> online_softmax(x: np.ndarray, chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>    num_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(x.shape[<span class="dv">1</span>] <span class="op">/</span> chunk_size))</span>
-<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
-<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
-<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>    softmax <span class="op">=</span> np.zeros_like(x)</span>
-<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_steps):</span>
-<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get chunk data</span></span>
-<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>        chunk_x <span class="op">=</span> x[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size]</span>
-<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 1. Perform local softmax on chunk data.</span></span>
-<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>        chunk_m <span class="op">=</span> np.<span class="bu">max</span>(chunk_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>        chunk_f <span class="op">=</span> np.exp(chunk_x <span class="op">-</span> np.expand_dims(chunk_m, <span class="dv">1</span>))</span>
-<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>        chunk_d <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a>        chunk_softmax <span class="op">=</span> chunk_f <span class="op">/</span> np.expand_dims(chunk_d, <span class="dv">1</span>)</span>
-<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 2. Get new m_x and l_x.</span></span>
-<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>        m_new <span class="op">=</span> np.maximum(m, chunk_m)</span>
-<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>        d_new <span class="op">=</span> d <span class="op">*</span> np.exp(m <span class="op">-</span> m_new) <span class="op">+</span> chunk_d <span class="op">*</span> np.exp(chunk_m <span class="op">-</span> m_new)</span>
-<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 3. Rescale(OLD + NEW) and concat(NEW) softmax values.</span></span>
-<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale</span></span>
-<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>        softmax <span class="op">=</span> (</span>
-<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a>            softmax</span>
-<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(d, <span class="dv">1</span>)</span>
-<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
-<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="dv">1</span>)</span>
-<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale and concat</span></span>
-<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>        softmax[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size] <span class="op">=</span> (</span>
-<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>            chunk_softmax</span>
-<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(chunk_d, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(chunk_m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
-<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 4. Update m_x and l_x from CURRENT global info.</span></span>
-<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>        m <span class="op">=</span> m_new</span>
-<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d_new</span>
-<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> softmax</span>
-<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a><span class="fu">## 3. FlashAttention</span></span>
-<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>有了 OnlineSoftmax 的概念，从 OnlineSoftmax 过渡到 FlashAttention 就很平滑了。</span>
-<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>Attention 的计算核心就是用 $Q$ 和 $K$ 计算 Attention Score，用 Softmax 将 Attention Score 转换到概率空间，然后在 $V$ 做加权获取最终的 Attention 输出。标准的 Dot-Product Self Attention 如下所示：</span>
-<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a>    S <span class="op">=</span> np.matmul(Q, K.T)  <span class="co"># Dot-Product Attention</span></span>
-<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> safe_softmax(S)  <span class="co"># (N, N)</span></span>
-<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.matmul(P, V)  <span class="co"># (N, d)</span></span>
-<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
-<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a>从 Attention 端到端的计算上看，Softmax 的数值只是过程变量，且 Softmax 的数值最终呈现在 $O$ 里。在 <span class="in">`2.3`</span> 小节中，我们知道 Softmax 的数值是可以分块在 Loop 中完成计算的，那么是否有可能在 $O$ 上面做 Online 更新呢？ —— 答案是必然的，**有**。</span>
-<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a>展开 FlashAttention 的计算细节之前我们先整体了解一下当前 GPU 的运算性能限制。</span>
-<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.1 Compute Bound Vs Memory Bound</span></span>
-<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a>首先了解以下几个概念：</span>
-<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>算力 $\pi$: 也称为计算平台的**性能上限**，指的是一个计算平台倾尽全力每秒钟所能完成的浮点运算数。单位是 <span class="in">`FLOPS`</span> or <span class="in">`FLOP/s`</span>。</span>
-<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>带宽 $\beta$: 也即计算平台的**带宽上限**，指的是一个计算平台倾尽全力每秒所能完成的内存交换量。单位是<span class="in">`Byte/s`</span>。</span>
-<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>计算强度上限 $I_{max} = \frac{\pi}{\beta}$: 两个指标相除即可得到计算平台的**计算强度上限**。它描述的是在这个计算平台上，单位内存交换最多用来进行多少次计算。单位是<span class="in">`FLOPs/Byte`</span>。</span>
-<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>模型的理论性能 $P$: 我们最关心的指标，即模型在计算平台上**实际**所能达到的**每秒浮点运算次数（理论值）**。单位是<span class="in">`FLOPS`</span> or <span class="in">`FLOP/s`</span>。</span>
-<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a>一个算法运行的效率是离不开硬件本身的。我们往往想知道：对于一个运算量为 $\pi_t$，数据读取存储量为 $\beta_t$ 的算法，它在算力上限为 $\pi$，带宽上限为 $\beta$ 的硬件上，能达到的最大性能 $P$ (Attanable Performance)是多少？这里最大性能 $P$ 指的是当前算法实际运行在硬件上时，每秒最多能达到的计算次数，单位是FLOP/s。</span>
-<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a>**Roof-line模型**就是为了解答这一问题而提出的，它能直观帮我们看到算法在硬件上能跑得多快，模型见下图。</span>
-<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a><span class="al">![15426dbd.png](../attachments/15426dbd.png)</span>{width=70%}</span>
-<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a>如图，横坐标 $I$ 表示计算强度，满足 $I=\frac{\pi_t}{\beta_t}$ ；纵坐标 $P$ 表示算法运行在硬件上的性能。算法的运行性能**不会超过硬件本身的计算上限**，所以 $P$ 的最大值取到 $\pi$。根据我们之前的分析，当 $I&gt;\frac{\pi}{\beta}$ 时，存在计算限制(Compute Bound)；当 $I&lt;\frac{\pi}{\beta}$ 时，存在内存限制(Memory Bound)。</span>
-<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.2 GPU Memory Layout</span></span>
-<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a><span class="al">![ace8b864.png](../attachments/ace8b864.png)</span>{width=80%}</span>
-<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a>在讲计算之前首先了解 GPU 的存储细节。上图最左是 FlashAttention 论文所绘制的硬件不同的存储类型、存储大小和带宽。一般来说，GPU 上的存储分类，可以按照是否在芯片上分为**片上内存(on chip)**和**片下内存(off chip)**。</span>
-<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>片上内存：主要用于缓存（cache）及少量特殊存储单元（例如texture），其特点是**存储空间小，但带宽大**。对应到上图中，SRAM 就属于片上内存，它的存储空间只有 <span class="in">`20MB`</span>(SM 数量<span class="sc">\*</span>L1 Cache 容量)，但是带宽可以达到 <span class="in">`19TB/s`</span>。</span>
-<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>片下内存：主要用于全局存储（global memory），即我们常说的**显存**，其特点是**存储空间大，但带宽小**，对应到上图中，HBM 就属于片下内存，它的存储空间有 <span class="in">`40GB`</span>(A100 40GB)，但带宽相比于 SRAM 就小得多，只有 <span class="in">`1.5TB/s`</span>。</span>
-<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a><span class="al">![0cc7e3db.png](../attachments/0cc7e3db.png)</span>{width=50%}</span>
-<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a><span class="al">![6826c3c0.png](../attachments/6826c3c0.png)</span>{width=70%}</span>
-<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-177"><a href="#cb4-177" aria-hidden="true" tabindex="-1"></a>从上图的硬件架构上看，越是靠近 SM 核心的存储，读写速度就越快。上图中 L1 Cache 则是 FlashAttention 中的 SRAM，为每个 SM 独占，L2 Cache 是所有 SM 共享，再往下就是 HMB。所以在算法计算中，如果读写全部在 SRAM 上，将达到 IO 速度的上限，计算自然就快了。</span>
-<span id="cb4-178"><a href="#cb4-178" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-179"><a href="#cb4-179" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-180"><a href="#cb4-180" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.3 Standard Attention</span></span>
-<span id="cb4-181"><a href="#cb4-181" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-182"><a href="#cb4-182" aria-hidden="true" tabindex="-1"></a>Given input sequences $Q, K, V \in \mathbb{R}^{N \times d}$ where $N$ is the sequence length and $d$ is the head dimension, we want to compute the attention output $O \in \mathbb{R}^{N \times d}$:</span>
-<span id="cb4-183"><a href="#cb4-183" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-184"><a href="#cb4-184" aria-hidden="true" tabindex="-1"></a>$$ S = QK^T \in \mathbb{R}^{N \times N}, P = softmax(S) \in \mathbb{R}^{N \times N}, O = PV \in \mathbb{R}^{N \times d} $$</span>
-<span id="cb4-185"><a href="#cb4-185" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-186"><a href="#cb4-186" aria-hidden="true" tabindex="-1"></a>标准 Attention 的算法如下，所有中间结果储存在 HBM，空间复杂度最高的是 $O(N^2)$ 的 $S$ 和 $P$，对于 HBM 的 IO(读写) 复杂度是 $O(Nd+N^2)$</span>
-<span id="cb4-187"><a href="#cb4-187" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-188"><a href="#cb4-188" aria-hidden="true" tabindex="-1"></a><span class="al">![7e5428b9.png](../attachments/7e5428b9.png)</span>{width=70%}</span>
-<span id="cb4-189"><a href="#cb4-189" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-190"><a href="#cb4-190" aria-hidden="true" tabindex="-1"></a>Standard attention implementations materialize the matrices $S$ and $P$ to HBM, which **takes $O(N^2)$ memory**. Often $N\gg d$ (e.g., for GPT2, $N=1024$ and $d=64$(**single head dim**)). We describe the standard attention implementation in Algorithm `0`. As some or most of the operations are **memory-bound** (e.g., softmax), the large number of memory accesses translates to slow wall-clock time.</span>
-<span id="cb4-191"><a href="#cb4-191" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-192"><a href="#cb4-192" aria-hidden="true" tabindex="-1"></a>This problem is exacerbated(恶化) by other **elementwise operations** applied to the attention matrix, such as masking applied to $S$ or dropout applied to $P$. </span>
-<span id="cb4-193"><a href="#cb4-193" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-194"><a href="#cb4-194" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.4 FlashAttention</span></span>
-<span id="cb4-195"><a href="#cb4-195" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-196"><a href="#cb4-196" aria-hidden="true" tabindex="-1"></a>FlashAttention 的核心理念是尽可能少读写 HBM，在具体实现上采用了 **tiling**（分块）和 recompute（重新计算 $S$ 和 $P$，因为 forward 过程中不存储 $O(N^2)$ 的 Attention Scores，但是反向需要用到，所以采用了重新计算。）</span>
-<span id="cb4-197"><a href="#cb4-197" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-198"><a href="#cb4-198" aria-hidden="true" tabindex="-1"></a><span class="al">![718d7308.png](../attachments/718d7308.png)</span>{width=80%}</span>
-<span id="cb4-199"><a href="#cb4-199" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-200"><a href="#cb4-200" aria-hidden="true" tabindex="-1"></a>同样对 FlashAttention 进行 IO 复杂度分析，$M$ 为单个流式处理器的 L1 Cache（大小约100KB，A100 中有 108 个 SM，每个 SM L1 Cache 是 192KB，总计约 20MB），$d$ 是 single head dim（一般是64/128）。</span>
-<span id="cb4-201"><a href="#cb4-201" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-202"><a href="#cb4-202" aria-hidden="true" tabindex="-1"></a>首先我们看 Outer Loop，一次 Loop 会访问一遍完整的 $K$ 和 $V$，IO 复杂度是 $O(Nd)$。</span>
-<span id="cb4-203"><a href="#cb4-203" aria-hidden="true" tabindex="-1"></a>对于 Inner Loop，一次 Loop 会访问一遍完整的 $Q$，为 $O(Nd)$；Inner Loop 的次数 $T_c = \lceil{\frac{N}{B_c}}\rceil$，为 $O(NdM^{-1})$，相乘可以得到 Inner Loop 的 IO 复杂度是 $O(N^2d^2M^{-1})$，因此 FlashAttention 算法整体的 IO 复杂度为 $O(Nd + N^2d^2M^{-1})$。</span>
-<span id="cb4-204"><a href="#cb4-204" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-205"><a href="#cb4-205" aria-hidden="true" tabindex="-1"></a>对比标准 Attention 的 $O(Nd+N^2)$，因为 $\frac{d^2}{M}\ll1$，因此对于 HBM 的 IO 复杂度得到了显著的降低。此外，再加上 kernel fusion，进一步对计算加速。</span>
-<span id="cb4-206"><a href="#cb4-206" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-207"><a href="#cb4-207" aria-hidden="true" tabindex="-1"></a>同时，因为不需要存储 $S$ 和 $P$（$O(N^2)$），$m$ 和 $l$ 的开销小（$O(N)$），空间复杂度从标准的 $O(N^2d)$ 降低到了 $O(Nd)$。</span>
-<span id="cb4-208"><a href="#cb4-208" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-209"><a href="#cb4-209" aria-hidden="true" tabindex="-1"></a><span class="al">![c8105e32.png](../attachments/c8105e32.png)</span>{width=80%}</span>
-<span id="cb4-210"><a href="#cb4-210" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-211"><a href="#cb4-211" aria-hidden="true" tabindex="-1"></a>注意上图左侧中，Linformer Attention 和 OpenAI Sparse Attention 不是 **exact** Attention。</span>
-<span id="cb4-212"><a href="#cb4-212" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-213"><a href="#cb4-213" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.5 代码实现</span></span>
-<span id="cb4-214"><a href="#cb4-214" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-215"><a href="#cb4-215" aria-hidden="true" tabindex="-1"></a>沿用 Online Softmax 的框架，并从 1d 的 chunk-wise 拓展到 2d 的 block-wise。模型一个 SM 单元中的计算逻辑，此处用 numpy 验证其准确性，无加速效果，只减少了空间复杂度。简单起见忽略了 mask，dropout等细节。</span>
-<span id="cb4-216"><a href="#cb4-216" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-217"><a href="#cb4-217" aria-hidden="true" tabindex="-1"></a>关于 backward 的计算，感兴趣的可以自行查看论文，核心思想是重新计算 $S$ 和 $P$，把前向中没有存储的变量进行 recompute，搭回反向的通道。</span>
-<span id="cb4-218"><a href="#cb4-218" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-221"><a href="#cb4-221" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb4-222"><a href="#cb4-222" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flash_attention(</span>
-<span id="cb4-223"><a href="#cb4-223" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray, Br: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>, Bc: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span></span>
-<span id="cb4-224"><a href="#cb4-224" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb4-225"><a href="#cb4-225" aria-hidden="true" tabindex="-1"></a>    N, d <span class="op">=</span> Q.shape</span>
-<span id="cb4-226"><a href="#cb4-226" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.zeros_like(Q)  <span class="co"># Alloc memory for `O` in HBM</span></span>
-<span id="cb4-227"><a href="#cb4-227" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-228"><a href="#cb4-228" aria-hidden="true" tabindex="-1"></a>    outer_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Bc))</span>
-<span id="cb4-229"><a href="#cb4-229" aria-hidden="true" tabindex="-1"></a>    inner_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Br))</span>
-<span id="cb4-230"><a href="#cb4-230" aria-hidden="true" tabindex="-1"></a>    m_x_all <span class="op">=</span> np.zeros((N))</span>
-<span id="cb4-231"><a href="#cb4-231" aria-hidden="true" tabindex="-1"></a>    l_x_all <span class="op">=</span> np.zeros((N))</span>
-<span id="cb4-232"><a href="#cb4-232" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-233"><a href="#cb4-233" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(outer_loop_steps):</span>
-<span id="cb4-234"><a href="#cb4-234" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(inner_loop_steps):</span>
-<span id="cb4-235"><a href="#cb4-235" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Get chunk data</span></span>
-<span id="cb4-236"><a href="#cb4-236" aria-hidden="true" tabindex="-1"></a>            chunk_q <span class="op">=</span> Q[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]  <span class="co"># (Br, d)</span></span>
-<span id="cb4-237"><a href="#cb4-237" aria-hidden="true" tabindex="-1"></a>            chunk_k <span class="op">=</span> K[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
-<span id="cb4-238"><a href="#cb4-238" aria-hidden="true" tabindex="-1"></a>            chunk_v <span class="op">=</span> V[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
-<span id="cb4-239"><a href="#cb4-239" aria-hidden="true" tabindex="-1"></a>            m_x <span class="op">=</span> m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
-<span id="cb4-240"><a href="#cb4-240" aria-hidden="true" tabindex="-1"></a>            l_x <span class="op">=</span> l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
-<span id="cb4-241"><a href="#cb4-241" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-242"><a href="#cb4-242" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 1. Perform attention on block data.</span></span>
-<span id="cb4-243"><a href="#cb4-243" aria-hidden="true" tabindex="-1"></a>            chunk_s <span class="op">=</span> np.matmul(chunk_q, chunk_k.T)  <span class="co"># (Br, Bc)</span></span>
-<span id="cb4-244"><a href="#cb4-244" aria-hidden="true" tabindex="-1"></a>            chunk_m_x <span class="op">=</span> np.<span class="bu">max</span>(chunk_s, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb4-245"><a href="#cb4-245" aria-hidden="true" tabindex="-1"></a>            chunk_f_x <span class="op">=</span> np.exp(chunk_s <span class="op">-</span> np.expand_dims(chunk_m_x, <span class="dv">1</span>))</span>
-<span id="cb4-246"><a href="#cb4-246" aria-hidden="true" tabindex="-1"></a>            chunk_l_x <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb4-247"><a href="#cb4-247" aria-hidden="true" tabindex="-1"></a>            chunk_p <span class="op">=</span> chunk_f_x <span class="op">/</span> np.expand_dims(chunk_l_x, <span class="dv">1</span>)</span>
-<span id="cb4-248"><a href="#cb4-248" aria-hidden="true" tabindex="-1"></a>            chunk_o <span class="op">=</span> np.matmul(chunk_p, chunk_v)</span>
-<span id="cb4-249"><a href="#cb4-249" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-250"><a href="#cb4-250" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 2. Update `GLOBAL` stats.</span></span>
-<span id="cb4-251"><a href="#cb4-251" aria-hidden="true" tabindex="-1"></a>            m_x_new <span class="op">=</span> np.maximum(m_x, chunk_m_x)</span>
-<span id="cb4-252"><a href="#cb4-252" aria-hidden="true" tabindex="-1"></a>            l_x_new <span class="op">=</span> l_x <span class="op">*</span> np.exp(m_x <span class="op">-</span> m_x_new) <span class="op">+</span> chunk_l_x <span class="op">*</span> np.exp(</span>
-<span id="cb4-253"><a href="#cb4-253" aria-hidden="true" tabindex="-1"></a>                chunk_m_x <span class="op">-</span> m_x_new</span>
-<span id="cb4-254"><a href="#cb4-254" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb4-255"><a href="#cb4-255" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-256"><a href="#cb4-256" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 3. Rescale and update `GLOBAL` output.</span></span>
-<span id="cb4-257"><a href="#cb4-257" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Rescale(Old)</span></span>
-<span id="cb4-258"><a href="#cb4-258" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> (</span>
-<span id="cb4-259"><a href="#cb4-259" aria-hidden="true" tabindex="-1"></a>                O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
-<span id="cb4-260"><a href="#cb4-260" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(l_x, <span class="dv">1</span>)</span>
-<span id="cb4-261"><a href="#cb4-261" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
-<span id="cb4-262"><a href="#cb4-262" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="dv">1</span>)</span>
-<span id="cb4-263"><a href="#cb4-263" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb4-264"><a href="#cb4-264" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Update(New)</span></span>
-<span id="cb4-265"><a href="#cb4-265" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">+=</span> (</span>
-<span id="cb4-266"><a href="#cb4-266" aria-hidden="true" tabindex="-1"></a>                chunk_o</span>
-<span id="cb4-267"><a href="#cb4-267" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(chunk_m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
-<span id="cb4-268"><a href="#cb4-268" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb4-269"><a href="#cb4-269" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb4-270"><a href="#cb4-270" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-271"><a href="#cb4-271" aria-hidden="true" tabindex="-1"></a>            m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> m_x_new</span>
-<span id="cb4-272"><a href="#cb4-272" aria-hidden="true" tabindex="-1"></a>            l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> l_x_new</span>
-<span id="cb4-273"><a href="#cb4-273" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-274"><a href="#cb4-274" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
-<span id="cb4-275"><a href="#cb4-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
-<span id="cb4-276"><a href="#cb4-276" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-277"><a href="#cb4-277" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb4-278"><a href="#cb4-278" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-279"><a href="#cb4-279" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. PagedAttention</span></span>
-<span id="cb4-280"><a href="#cb4-280" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-281"><a href="#cb4-281" aria-hidden="true" tabindex="-1"></a>PagedAttention 的核心是提升显存利用效率，减少存储碎片，最终达到提升服务吞吐量的效果，不同于 FlashAttention，它对单一的序列生成理论上没有加速效果。</span>
-<span id="cb4-282"><a href="#cb4-282" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-283"><a href="#cb4-283" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.1 KV Cache</span></span>
-<span id="cb4-284"><a href="#cb4-284" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-285"><a href="#cb4-285" aria-hidden="true" tabindex="-1"></a><span class="al">![24972e88.png](../attachments/24972e88.png)</span>{width=50%}</span>
-<span id="cb4-286"><a href="#cb4-286" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-287"><a href="#cb4-287" aria-hidden="true" tabindex="-1"></a>First, the existing systems suffer from internal and external memory fragmentation. To store the KV cache of a request in contiguous space, they **pre-allocate** a contiguous chunk of memory with the request’s maximum length(e.g., 2048 tokens).</span>
-<span id="cb4-288"><a href="#cb4-288" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-289"><a href="#cb4-289" aria-hidden="true" tabindex="-1"></a>LLM 模型在做推理时，会对 KV Cache 进行提前的显存分配。因为解码前不知道一个序列最终长度是多少（等待 EOS 或者最长时截断），模型会根据用户传参（max_length）来分配一段最大的**连续**的显存空间，等待自回归解码时逐个填充（此处用 greedy decoding and sampling 来举例，如果是其他解码方案，显存的分配会更多）。</span>
-<span id="cb4-290"><a href="#cb4-290" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-291"><a href="#cb4-291" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.2 Memory Fragmentation</span></span>
-<span id="cb4-292"><a href="#cb4-292" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-293"><a href="#cb4-293" aria-hidden="true" tabindex="-1"></a><span class="al">![c7d061fa.png](../attachments/c7d061fa.png)</span></span>
-<span id="cb4-294"><a href="#cb4-294" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-295"><a href="#cb4-295" aria-hidden="true" tabindex="-1"></a>上图展示了三种不同的显存浪费的情况：</span>
-<span id="cb4-296"><a href="#cb4-296" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-297"><a href="#cb4-297" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>reserved: 当前解码时刻还未用到的显存(但是后面将会使用，假设我们已经知道输出序列。)</span>
-<span id="cb4-298"><a href="#cb4-298" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>internal fragmentation: 上面提到的根据 max_length 提前分配的显存，在 batch 推理的过程中，这部分将持续占用，但不产生任何价值。</span>
-<span id="cb4-299"><a href="#cb4-299" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>external fragmentation: 推理框架（文中举例是 FT 和 Orca），在为多个序列分配各自的连续的显存空间存在的碎片区域。</span>
-<span id="cb4-300"><a href="#cb4-300" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-301"><a href="#cb4-301" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.3 PagedAttention</span></span>
-<span id="cb4-302"><a href="#cb4-302" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-303"><a href="#cb4-303" aria-hidden="true" tabindex="-1"></a>In vLLM, we identify that the performance of LLM serving is bottlenecked by memory. In the autoregressive decoding process, all the input tokens to the LLM produce their attention key and value tensors, and these tensors are kept in GPU memory to generate next tokens. These cached key and value tensors are often referred to as KV cache. The KV cache is:</span>
-<span id="cb4-304"><a href="#cb4-304" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-305"><a href="#cb4-305" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Large: Takes up to 1.7GB for a single sequence in LLaMA-13B.</span>
-<span id="cb4-306"><a href="#cb4-306" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dynamic: Its size depends on the sequence length, which is highly variable and unpredictable. As a result, efficiently managing the KV cache presents a significant challenge. We find that existing systems waste 60% – 80% of memory due to fragmentation and over-reservation.</span>
-<span id="cb4-307"><a href="#cb4-307" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-308"><a href="#cb4-308" aria-hidden="true" tabindex="-1"></a>To address this problem, we introduce **PagedAttention**, an attention algorithm inspired by the classic idea of **virtual memory and paging in operating systems**. Unlike the traditional attention algorithms, PagedAttention **allows storing continuous keys and values in non-contiguous memory space**. Specifically, PagedAttention partitions the KV cache of each sequence into blocks, each block containing the keys and values for a fixed number of tokens. During the attention computation, the PagedAttention kernel identifies and fetches these blocks efficiently.</span>
-<span id="cb4-309"><a href="#cb4-309" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-310"><a href="#cb4-310" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.1 Memory Block</span></span>
-<span id="cb4-311"><a href="#cb4-311" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-312"><a href="#cb4-312" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation0.gif](../attachments/annimation0.gif)</span>{width=70%}</span>
-<span id="cb4-313"><a href="#cb4-313" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-314"><a href="#cb4-314" aria-hidden="true" tabindex="-1"></a>上图演示的是最新一个 token <span class="in">`for`</span> 对于已有的序列（可以是输入的 prompt）<span class="in">`Alan Turing is a computer scientist and mathematician renowned for`</span> 做 Attention 的过程。图示中以 Block 分块管理显存，以达到用**不连续**代替连续的显存空间。</span>
-<span id="cb4-315"><a href="#cb4-315" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-316"><a href="#cb4-316" aria-hidden="true" tabindex="-1"></a>PagedAttention 想要达到最小化的显存浪费，在上文中介绍的 <span class="in">`reserved`</span> 和 <span class="in">`external fragmentation`</span>在这种方式下可以完全清除，但 <span class="in">`internal fragmentation`</span> 无法完全消除。图中 Block 的 size 为 4，在 Block 2 中存在 2 个单元的碎片浪费。</span>
-<span id="cb4-317"><a href="#cb4-317" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-318"><a href="#cb4-318" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.2  Block table</span></span>
-<span id="cb4-319"><a href="#cb4-319" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-320"><a href="#cb4-320" aria-hidden="true" tabindex="-1"></a>Because the blocks do not need to be contiguous in memory, we can manage the keys and values in a more flexible way as in OS’s virtual memory: one can think of blocks as pages, tokens as bytes, and sequences as processes. The contiguous **logical blocks** of a sequence are mapped to non-contiguous **physical blocks** via a **block table**. The physical blocks are allocated on demand as new tokens are generated.</span>
-<span id="cb4-321"><a href="#cb4-321" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-322"><a href="#cb4-322" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation1.gif](../attachments/annimation1.gif)</span>{width=70%}</span>
-<span id="cb4-323"><a href="#cb4-323" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-324"><a href="#cb4-324" aria-hidden="true" tabindex="-1"></a>PagedAttention 在实现上采用了 KV Cache Manager 维护了多张 Block table，表里存着 logical blocks 到 phsical blocks 的映射。并且，为了尽量消除 <span class="in">`internal fragmentation`</span>，他实现了动态的显存分配管理。</span>
-<span id="cb4-325"><a href="#cb4-325" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-326"><a href="#cb4-326" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.3 Memory Sharing</span></span>
-<span id="cb4-327"><a href="#cb4-327" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-328"><a href="#cb4-328" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation2.gif](../attachments/annimation2.gif)</span>{width=70%}</span>
-<span id="cb4-329"><a href="#cb4-329" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-330"><a href="#cb4-330" aria-hidden="true" tabindex="-1"></a>在 LLM 解码过程中，我们可能会采取多种解码方式扩大搜索空间，如 Parallel sampling、Beam Search 等。此类解码方式将会输出多个 candidates。有个直观的感受是，在多序列生成过程中，大概率会以一个**树状**的样式增长，因此有可能可以共享某些 KV Cache。然而在传统解码模式下，因为 KV Cache 分开存放在连续的显存空间，显存的占用将会线性增长，无法达成 KV Cache 的共享。 </span>
-<span id="cb4-331"><a href="#cb4-331" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-332"><a href="#cb4-332" aria-hidden="true" tabindex="-1"></a>PagedAttention 以引用计数和 Copy-on-Write 的特性实现了多序列生成的 KV Cache 共享具体，Parallel sampling 的解码流程如下图所示：</span>
-<span id="cb4-333"><a href="#cb4-333" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-334"><a href="#cb4-334" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation3.gif](../attachments/annimation3.gif)</span>{width=70%}</span>
-<span id="cb4-335"><a href="#cb4-335" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-336"><a href="#cb4-336" aria-hidden="true" tabindex="-1"></a>在 Beam Search 的场景下，则会管理一个树状结构，在最新时刻的解码结果出现后，可以将废弃的 Block 进行剪枝回收。如下图示例，Beam width 为4，虚线左侧是 $t-1$ 时刻的 KV Cache 占用情况，当 $t$ 时刻解码完成后，最新的 Block9~12 依赖的 KV Cache 全部来自 Block6 和 Block7，则 Block2、4、5、8 的显存将被回收。</span>
-<span id="cb4-337"><a href="#cb4-337" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-338"><a href="#cb4-338" aria-hidden="true" tabindex="-1"></a>../attachments</span>
-<span id="cb4-339"><a href="#cb4-339" aria-hidden="true" tabindex="-1"></a><span class="al">![fc7f0992.png](../attachments/fc7f0992.png)</span>{width=60%}</span>
-<span id="cb4-340"><a href="#cb4-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-341"><a href="#cb4-341" aria-hidden="true" tabindex="-1"></a>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the **earliest** arrived requests are **served first** and the **latest** requests are **preempted first**。具体实现方式有:</span>
-<span id="cb4-342"><a href="#cb4-342" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-343"><a href="#cb4-343" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Swapping: latest requests 占用的 Block 将会被放入 CPU RAM，等待前方解码完成释放空间后，再从 CPU RAM 中重新取回显存。</span>
-<span id="cb4-344"><a href="#cb4-344" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Recomputation: 直接释放 latest requests 占用的 Block，后续将重新计算得到 KV Cache（在这里重新计算是很快的，因为我们已知当前所有的 token，直接用 Masked Attention并行计算）。</span>
-<span id="cb4-345"><a href="#cb4-345" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-346"><a href="#cb4-346" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb4-347"><a href="#cb4-347" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-348"><a href="#cb4-348" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. 抛砖引玉</span></span>
-<span id="cb4-349"><a href="#cb4-349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-350"><a href="#cb4-350" aria-hidden="true" tabindex="-1"></a>此次分享专注的是 Transformer 在计算和推理上结构优化，该类方法主要通过优化 Transformer 的结构以实现推理性能的提升。</span>
-<span id="cb4-351"><a href="#cb4-351" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-352"><a href="#cb4-352" aria-hidden="true" tabindex="-1"></a>当前 LLM 加速技术是热门的研究方向，目前包括但不限于以下几点(<span class="co">[</span><span class="ot">NLP（十八）：LLM 的推理优化技术纵览</span><span class="co">](https://zhuanlan.zhihu.com/p/642412124)</span>)：</span>
-<span id="cb4-353"><a href="#cb4-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-354"><a href="#cb4-354" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>子图融合（subgraph fusion）</span>
-<span id="cb4-355"><a href="#cb4-355" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>模型压缩（Model Compression）</span>
-<span id="cb4-356"><a href="#cb4-356" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>并行化（Parallelism）</span>
-<span id="cb4-357"><a href="#cb4-357" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Transformer 结构优化</span>
-<span id="cb4-358"><a href="#cb4-358" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>动态批处理（Dynamic Batch, Continuous batch）</span>
-<span id="cb4-359"><a href="#cb4-359" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>KV cache 优化</span>
-<span id="cb4-360"><a href="#cb4-360" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>投机采样与MoE</span>
-<span id="cb4-361"><a href="#cb4-361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb4-362"><a href="#cb4-362" aria-hidden="true" tabindex="-1"></a>**一起学习、讨论和进步。**</span>
+<div class="sourceCode" id="cb8" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "FlashAttention 和 PagedAttention"</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a><span class="fu">## 0. 参考文献</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">8 May 2018</span><span class="co">]</span>Online normalizer calculation for softmax](https://arxiv.org/abs/1805.02867)</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">27 May 2022</span><span class="co">]</span>FlashAttention: Fast and Memory-Efficient Exact Attention</span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>with IO-Awareness](https://arxiv.org/abs/2205.14135)</span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">17 Jul 2023</span><span class="co">]</span>FlashAttention-2:</span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>Faster Attention with Better Parallelism and Work Partitioning](https://arxiv.org/abs/2307.08691)</span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>[<span class="co">[</span><span class="ot">12 Sep 2023</span><span class="co">]</span>Efficient Memory Management for Large Language Model Serving with PagedAttention](https://arxiv.org/abs/2309.06180)</span>
+<span id="cb8-13"><a href="#cb8-13" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">NLP（十七）：从 FlashAttention 到 PagedAttention, 如何进一步优化 Attention 性能</span><span class="co">](https://zhuanlan.zhihu.com/p/638468472)</span></span>
+<span id="cb8-14"><a href="#cb8-14" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">NLP（十八）：LLM 的推理优化技术纵览</span><span class="co">](https://zhuanlan.zhihu.com/p/642412124)</span></span>
+<span id="cb8-15"><a href="#cb8-15" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">vLLM: Easy, Fast, and Cheap LLM Serving with PagedAttention</span><span class="co">](https://blog.vllm.ai/2024/06/20/vllm.html)</span></span>
+<span id="cb8-16"><a href="#cb8-16" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">FlashAttention 的速度优化原理是怎样的？</span><span class="co">](https://www.zhihu.com/question/611236756/answer/3132304304)</span></span>
+<span id="cb8-17"><a href="#cb8-17" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">一心二用的Online Softmax</span><span class="co">](https://zhuanlan.zhihu.com/p/638788074)</span></span>
+<span id="cb8-18"><a href="#cb8-18" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">图解大模型计算加速系列：FlashAttention V1，从硬件到计算逻辑 - 知乎</span><span class="co">](https://zhuanlan.zhihu.com/p/669926191)</span></span>
+<span id="cb8-19"><a href="#cb8-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-20"><a href="#cb8-20" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-21"><a href="#cb8-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-22"><a href="#cb8-22" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1. Overview</span></span>
+<span id="cb8-23"><a href="#cb8-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-24"><a href="#cb8-24" aria-hidden="true" tabindex="-1"></a>|Term | 是什么| 用在哪里| 技术亮点|</span>
+<span id="cb8-25"><a href="#cb8-25" aria-hidden="true" tabindex="-1"></a>|:---|:---|:---|:---|</span>
+<span id="cb8-26"><a href="#cb8-26" aria-hidden="true" tabindex="-1"></a>|Softmax | - | - | - |</span>
+<span id="cb8-27"><a href="#cb8-27" aria-hidden="true" tabindex="-1"></a>|SafeSoftmax | 为了防止 Softmax 计算过程中 exp 函数出现数值上下溢的情况，提出的一种数值处理方案 | Torch,TF,Paddle 等框架，嵌入至绝大多数模型 | 数值处理，指数部分减去原始向量的 max 值。 |</span>
+<span id="cb8-28"><a href="#cb8-28" aria-hidden="true" tabindex="-1"></a>|OnlineSoftmax | Softmax 的一种在线更新的计算方法 | 任何需要计算 Softmax 的场景 | 降低对原始向量的遍历次数，计算速度加快。 |</span>
+<span id="cb8-29"><a href="#cb8-29" aria-hidden="true" tabindex="-1"></a>|FlashAttention | 一种 **精确的**（非近似） Attention 的加速算法 | 所有用到 Attention OP 的模型，包括不限于类 Bert，类 GPT 等模型。 | 结合 GPU Memory 的硬件 Layout，基于 Online Softmax 对 Attention OP 进行 **精细化** 优化。不降 FLOPs，降低 HBM 读写次数和算子融合达到加速效果。&lt;br&gt;时间复杂度 **不变**，空间复杂度从 $O(N^2)$ 降低至 $O(N)$。 |</span>
+<span id="cb8-30"><a href="#cb8-30" aria-hidden="true" tabindex="-1"></a>|FlashAttention-2 | 基于 FlashAttention 算法，提升 FlashAttention 的计算效率 | 与 FlashAttention 一致 | FlashAttention 计算提效，提升了非 matmul 的 FLOPs，引入了更好的并行化计算方式和内存复用。 |</span>
+<span id="cb8-31"><a href="#cb8-31" aria-hidden="true" tabindex="-1"></a>|PagedAttention | 一种提升模型服务 **吞吐量** 的算法，提升批量计算时显存的利用效率 | vLLM 加速框架的核心技术，用于各种用到用到 Decoder 模型的服务中，适用于市面上各类 LLM | LLM 推理框架（如 FT 和 Orca）在批量推理时，由于用于存储 KV Cache 的显存需要提前分配，并针对每一个序列分配在连续的显存空间上，导致存在大量的碎片（存在于 **序列内** 和 **序列间**）。<span class="kw">&lt;br&gt;</span>PagedAttention 引入内存分页管理的思想，用一个 Scheduler 单例，以 Block 为单位动态地分配显存，提升显存利用率（Batch 计算中复用，Decode 过程中剪枝等），从而加速批量计算，提升模型服务的吞吐量。 |</span>
+<span id="cb8-32"><a href="#cb8-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-33"><a href="#cb8-33" aria-hidden="true" tabindex="-1"></a>: {tbl-colwidths="<span class="co">[</span><span class="ot">10, 20, 20, 50</span><span class="co">]</span>"}</span>
+<span id="cb8-34"><a href="#cb8-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-35"><a href="#cb8-35" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-36"><a href="#cb8-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-37"><a href="#cb8-37" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2. OnlineSoftmax</span></span>
+<span id="cb8-38"><a href="#cb8-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-39"><a href="#cb8-39" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.1 Softmax</span></span>
+<span id="cb8-40"><a href="#cb8-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-41"><a href="#cb8-41" aria-hidden="true" tabindex="-1"></a>$$ y = softmax(x) $$</span>
+<span id="cb8-42"><a href="#cb8-42" aria-hidden="true" tabindex="-1"></a>$$ y_i = \frac{e^{x_i}}{\sum_{j=1}^{V} e^{x_j}}  \tag{1}$$</span>
+<span id="cb8-43"><a href="#cb8-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-44"><a href="#cb8-44" aria-hidden="true" tabindex="-1"></a>where $x, y \in \mathbb{R}^V$   . The naive implementation (see algorithm <span class="in">`1`</span>) scans the input vector two times - one to calculate the normalization term $d_V$ and another to compute output values $y_i$ - effectively doing **three memory accesses** per vector element: two loads and one store.</span>
+<span id="cb8-45"><a href="#cb8-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-46"><a href="#cb8-46" aria-hidden="true" tabindex="-1"></a><span class="al">![d20eb1b8.png](../attachments/d20eb1b8.png)</span>{width=70%}</span>
+<span id="cb8-47"><a href="#cb8-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-48"><a href="#cb8-48" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.2 SafeSoftmax</span></span>
+<span id="cb8-49"><a href="#cb8-49" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-50"><a href="#cb8-50" aria-hidden="true" tabindex="-1"></a>Unfortunately, on real hardware, where the range of numbers represented is limited, the line <span class="in">`3`</span> of the algorithm <span class="in">`1`</span> can **overflow or underflow due to the exponent**. There is a safe form of <span class="in">`(1)`</span>, which is immune to this problem:</span>
+<span id="cb8-51"><a href="#cb8-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-52"><a href="#cb8-52" aria-hidden="true" tabindex="-1"></a>$$ y_i = \frac{e^{x_i-\max_{k=1}^{V}x_k}}{\sum_{j=1}^{V} e^{x_j-\max_{k=1}^{V}x_k}}  \tag{2}$$</span>
+<span id="cb8-53"><a href="#cb8-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-54"><a href="#cb8-54" aria-hidden="true" tabindex="-1"></a><span class="al">![de4cc3d9.png](../attachments/de4cc3d9.png)</span>{width=70%}</span>
+<span id="cb8-55"><a href="#cb8-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-56"><a href="#cb8-56" aria-hidden="true" tabindex="-1"></a>But Safe Softmax does three passes over input vector: The first one calculates the maximum value $m_V$ , the second one - normalization term $d_V$ , and the third one - final values $y_i$, see algorithm <span class="in">`2`</span>; This results in **4 memory access** per vector element overall.</span>
+<span id="cb8-57"><a href="#cb8-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-58"><a href="#cb8-58" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.3 OnlineSoftmax</span></span>
+<span id="cb8-59"><a href="#cb8-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-60"><a href="#cb8-60" aria-hidden="true" tabindex="-1"></a>The algorithm <span class="in">`3`</span> calculates both the maximum value m and the normalization term $d$ in a **single pass** over input vector with negligible additional cost of two operations per vector element. It **reduces memory accesses** from 4 down to 3 per vector element for the Softmax function evaluation. Inspiration came from the numerically stable variance calculation online algorithm.</span>
+<span id="cb8-61"><a href="#cb8-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-62"><a href="#cb8-62" aria-hidden="true" tabindex="-1"></a><span class="al">![ba540d94.png](../attachments/ba540d94.png)</span>{width=70%}</span>
+<span id="cb8-63"><a href="#cb8-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-64"><a href="#cb8-64" aria-hidden="true" tabindex="-1"></a>Essentially, the algorithm keeps the maximum value $m$ and the normalization term $d$ as it iterates over elements of the input array. At each iteration it **needs to adjust** the normalizer $d$ to the new maximum $m_j$ and only then add new value to the normalizer.</span>
+<span id="cb8-65"><a href="#cb8-65" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-66"><a href="#cb8-66" aria-hidden="true" tabindex="-1"></a>这里需要注意的点在于，$m_j$ 和 $d_j$ 是在同一遍 Loop 中实时更新的，$m_j$ 求 max，很容易更新；$d_j$ 是指数项求和，在 Loop 中一旦发生最大值更新，即 $m_j \ne m_{j-1}$ ，$d_{j-1}$ 则需要进行一个指数项的缩放，其**数值**为 $e^{m_{j-1}-m_j}$。</span>
+<span id="cb8-67"><a href="#cb8-67" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-68"><a href="#cb8-68" aria-hidden="true" tabindex="-1"></a>实际上这里还可以继续优化，把 $y$ 的计算也放在第一遍 Loop 中，如果这么做，每一次 iter 需要更新的值是 $<span class="sc">\{</span>y_1, y_2...y_{j-1}<span class="sc">\}</span>$，然后拼接上最新的 ${y_j}$，缩放的方式需要同时考虑分子的 $m$ 和分母中的 $v$，其**数值**为 $\frac{d_{j-1} * e^{m_{j-1}-m_j}}{d_j}$。(注意针对 $y$ 的缩放和针对 $d$ 的缩放的差异)</span>
+<span id="cb8-69"><a href="#cb8-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-70"><a href="#cb8-70" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-71"><a href="#cb8-71" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2.4 代码实现</span></span>
+<span id="cb8-72"><a href="#cb8-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-73"><a href="#cb8-73" aria-hidden="true" tabindex="-1"></a>OnlineSoftmax实现，如 <span class="in">`2.3`</span> 最后的结论，用单 Loop 完成 SafeSoftmax 的数值计算，且支持 chunk 内并行。</span>
+<span id="cb8-76"><a href="#cb8-76" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-77"><a href="#cb8-77" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb8-78"><a href="#cb8-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-79"><a href="#cb8-79" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> online_softmax(x: np.ndarray, chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-80"><a href="#cb8-80" aria-hidden="true" tabindex="-1"></a>    num_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(x.shape[<span class="dv">1</span>] <span class="op">/</span> chunk_size))</span>
+<span id="cb8-81"><a href="#cb8-81" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb8-82"><a href="#cb8-82" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb8-83"><a href="#cb8-83" aria-hidden="true" tabindex="-1"></a>    softmax <span class="op">=</span> np.zeros_like(x)</span>
+<span id="cb8-84"><a href="#cb8-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-85"><a href="#cb8-85" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_steps):</span>
+<span id="cb8-86"><a href="#cb8-86" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get chunk data</span></span>
+<span id="cb8-87"><a href="#cb8-87" aria-hidden="true" tabindex="-1"></a>        chunk_x <span class="op">=</span> x[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size]</span>
+<span id="cb8-88"><a href="#cb8-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-89"><a href="#cb8-89" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 1. Perform local softmax on chunk data.</span></span>
+<span id="cb8-90"><a href="#cb8-90" aria-hidden="true" tabindex="-1"></a>        chunk_m <span class="op">=</span> np.<span class="bu">max</span>(chunk_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-91"><a href="#cb8-91" aria-hidden="true" tabindex="-1"></a>        chunk_f <span class="op">=</span> np.exp(chunk_x <span class="op">-</span> np.expand_dims(chunk_m, <span class="dv">1</span>))</span>
+<span id="cb8-92"><a href="#cb8-92" aria-hidden="true" tabindex="-1"></a>        chunk_d <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-93"><a href="#cb8-93" aria-hidden="true" tabindex="-1"></a>        chunk_softmax <span class="op">=</span> chunk_f <span class="op">/</span> np.expand_dims(chunk_d, <span class="dv">1</span>)</span>
+<span id="cb8-94"><a href="#cb8-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-95"><a href="#cb8-95" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 2. Get new m_x and l_x.</span></span>
+<span id="cb8-96"><a href="#cb8-96" aria-hidden="true" tabindex="-1"></a>        m_new <span class="op">=</span> np.maximum(m, chunk_m)</span>
+<span id="cb8-97"><a href="#cb8-97" aria-hidden="true" tabindex="-1"></a>        d_new <span class="op">=</span> d <span class="op">*</span> np.exp(m <span class="op">-</span> m_new) <span class="op">+</span> chunk_d <span class="op">*</span> np.exp(chunk_m <span class="op">-</span> m_new)</span>
+<span id="cb8-98"><a href="#cb8-98" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-99"><a href="#cb8-99" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 3. Rescale(OLD + NEW) and concat(NEW) softmax values.</span></span>
+<span id="cb8-100"><a href="#cb8-100" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale</span></span>
+<span id="cb8-101"><a href="#cb8-101" aria-hidden="true" tabindex="-1"></a>        softmax <span class="op">=</span> (</span>
+<span id="cb8-102"><a href="#cb8-102" aria-hidden="true" tabindex="-1"></a>            softmax</span>
+<span id="cb8-103"><a href="#cb8-103" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb8-104"><a href="#cb8-104" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb8-105"><a href="#cb8-105" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="dv">1</span>)</span>
+<span id="cb8-106"><a href="#cb8-106" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-107"><a href="#cb8-107" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale and concat</span></span>
+<span id="cb8-108"><a href="#cb8-108" aria-hidden="true" tabindex="-1"></a>        softmax[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size] <span class="op">=</span> (</span>
+<span id="cb8-109"><a href="#cb8-109" aria-hidden="true" tabindex="-1"></a>            chunk_softmax</span>
+<span id="cb8-110"><a href="#cb8-110" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(chunk_d, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-111"><a href="#cb8-111" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(chunk_m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb8-112"><a href="#cb8-112" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-113"><a href="#cb8-113" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-114"><a href="#cb8-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-115"><a href="#cb8-115" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 4. Update m_x and l_x from CURRENT global info.</span></span>
+<span id="cb8-116"><a href="#cb8-116" aria-hidden="true" tabindex="-1"></a>        m <span class="op">=</span> m_new</span>
+<span id="cb8-117"><a href="#cb8-117" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d_new</span>
+<span id="cb8-118"><a href="#cb8-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-119"><a href="#cb8-119" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> softmax</span>
+<span id="cb8-120"><a href="#cb8-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-121"><a href="#cb8-121" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-122"><a href="#cb8-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-123"><a href="#cb8-123" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-124"><a href="#cb8-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-125"><a href="#cb8-125" aria-hidden="true" tabindex="-1"></a><span class="fu">## 3. FlashAttention</span></span>
+<span id="cb8-126"><a href="#cb8-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-127"><a href="#cb8-127" aria-hidden="true" tabindex="-1"></a>有了 OnlineSoftmax 的概念，从 OnlineSoftmax 过渡到 FlashAttention 就很平滑了。</span>
+<span id="cb8-128"><a href="#cb8-128" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-129"><a href="#cb8-129" aria-hidden="true" tabindex="-1"></a>Attention 的计算核心就是用 $Q$ 和 $K$ 计算 Attention Score，用 Softmax 将 Attention Score 转换到概率空间，然后在 $V$ 做加权获取最终的 Attention 输出。标准的 Dot-Product Self Attention 如下所示：</span>
+<span id="cb8-130"><a href="#cb8-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-133"><a href="#cb8-133" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-134"><a href="#cb8-134" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-135"><a href="#cb8-135" aria-hidden="true" tabindex="-1"></a>    S <span class="op">=</span> np.matmul(Q, K.T)  <span class="co"># Dot-Product Attention</span></span>
+<span id="cb8-136"><a href="#cb8-136" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> safe_softmax(S)  <span class="co"># (N, N)</span></span>
+<span id="cb8-137"><a href="#cb8-137" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.matmul(P, V)  <span class="co"># (N, d)</span></span>
+<span id="cb8-138"><a href="#cb8-138" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-139"><a href="#cb8-139" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-140"><a href="#cb8-140" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-141"><a href="#cb8-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-142"><a href="#cb8-142" aria-hidden="true" tabindex="-1"></a>从 Attention 端到端的计算上看，Softmax 的数值只是过程变量，且 Softmax 的数值最终呈现在 $O$ 里。在 <span class="in">`2.3`</span> 小节中，我们知道 Softmax 的数值是可以分块在 Loop 中完成计算的，那么是否有可能在 $O$ 上面做 Online 更新呢？ —— 答案是必然的，**有**。</span>
+<span id="cb8-143"><a href="#cb8-143" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-144"><a href="#cb8-144" aria-hidden="true" tabindex="-1"></a>展开 FlashAttention 的计算细节之前我们先整体了解一下当前 GPU 的运算性能限制。</span>
+<span id="cb8-145"><a href="#cb8-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-146"><a href="#cb8-146" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.1 Compute Bound Vs Memory Bound</span></span>
+<span id="cb8-147"><a href="#cb8-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-148"><a href="#cb8-148" aria-hidden="true" tabindex="-1"></a>首先了解以下几个概念：</span>
+<span id="cb8-149"><a href="#cb8-149" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-150"><a href="#cb8-150" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>算力 $\pi$: 也称为计算平台的**性能上限**，指的是一个计算平台倾尽全力每秒钟所能完成的浮点运算数。单位是 <span class="in">`FLOPS`</span> or <span class="in">`FLOP/s`</span>。</span>
+<span id="cb8-151"><a href="#cb8-151" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>带宽 $\beta$: 也即计算平台的**带宽上限**，指的是一个计算平台倾尽全力每秒所能完成的内存交换量。单位是<span class="in">`Byte/s`</span>。</span>
+<span id="cb8-152"><a href="#cb8-152" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>计算强度上限 $I_{max} = \frac{\pi}{\beta}$: 两个指标相除即可得到计算平台的**计算强度上限**。它描述的是在这个计算平台上，单位内存交换最多用来进行多少次计算。单位是<span class="in">`FLOPs/Byte`</span>。</span>
+<span id="cb8-153"><a href="#cb8-153" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>模型的理论性能 $P$: 我们最关心的指标，即模型在计算平台上**实际**所能达到的**每秒浮点运算次数（理论值）**。单位是<span class="in">`FLOPS`</span> or <span class="in">`FLOP/s`</span>。</span>
+<span id="cb8-154"><a href="#cb8-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-155"><a href="#cb8-155" aria-hidden="true" tabindex="-1"></a>一个算法运行的效率是离不开硬件本身的。我们往往想知道：对于一个运算量为 $\pi_t$，数据读取存储量为 $\beta_t$ 的算法，它在算力上限为 $\pi$，带宽上限为 $\beta$ 的硬件上，能达到的最大性能 $P$ (Attanable Performance)是多少？这里最大性能 $P$ 指的是当前算法实际运行在硬件上时，每秒最多能达到的计算次数，单位是FLOP/s。</span>
+<span id="cb8-156"><a href="#cb8-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-157"><a href="#cb8-157" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-158"><a href="#cb8-158" aria-hidden="true" tabindex="-1"></a>**Roof-line模型**就是为了解答这一问题而提出的，它能直观帮我们看到算法在硬件上能跑得多快，模型见下图。</span>
+<span id="cb8-159"><a href="#cb8-159" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-160"><a href="#cb8-160" aria-hidden="true" tabindex="-1"></a><span class="al">![15426dbd.png](../attachments/15426dbd.png)</span>{width=70%}</span>
+<span id="cb8-161"><a href="#cb8-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-162"><a href="#cb8-162" aria-hidden="true" tabindex="-1"></a>如图，横坐标 $I$ 表示计算强度，满足 $I=\frac{\pi_t}{\beta_t}$ ；纵坐标 $P$ 表示算法运行在硬件上的性能。算法的运行性能**不会超过硬件本身的计算上限**，所以 $P$ 的最大值取到 $\pi$。根据我们之前的分析，当 $I&gt;\frac{\pi}{\beta}$ 时，存在计算限制(Compute Bound)；当 $I&lt;\frac{\pi}{\beta}$ 时，存在内存限制(Memory Bound)。</span>
+<span id="cb8-163"><a href="#cb8-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-164"><a href="#cb8-164" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.2 GPU Memory Layout</span></span>
+<span id="cb8-165"><a href="#cb8-165" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-166"><a href="#cb8-166" aria-hidden="true" tabindex="-1"></a><span class="al">![ace8b864.png](../attachments/ace8b864.png)</span>{width=80%}</span>
+<span id="cb8-167"><a href="#cb8-167" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-168"><a href="#cb8-168" aria-hidden="true" tabindex="-1"></a>在讲计算之前首先了解 GPU 的存储细节。上图最左是 FlashAttention 论文所绘制的硬件不同的存储类型、存储大小和带宽。一般来说，GPU 上的存储分类，可以按照是否在芯片上分为**片上内存(on chip)**和**片下内存(off chip)**。</span>
+<span id="cb8-169"><a href="#cb8-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-170"><a href="#cb8-170" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>片上内存：主要用于缓存（cache）及少量特殊存储单元（例如texture），其特点是**存储空间小，但带宽大**。对应到上图中，SRAM 就属于片上内存，它的存储空间只有 <span class="in">`20MB`</span>(SM 数量<span class="sc">\*</span>L1 Cache 容量)，但是带宽可以达到 <span class="in">`19TB/s`</span>。</span>
+<span id="cb8-171"><a href="#cb8-171" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>片下内存：主要用于全局存储（global memory），即我们常说的**显存**，其特点是**存储空间大，但带宽小**，对应到上图中，HBM 就属于片下内存，它的存储空间有 <span class="in">`40GB`</span>(A100 40GB)，但带宽相比于 SRAM 就小得多，只有 <span class="in">`1.5TB/s`</span>。</span>
+<span id="cb8-172"><a href="#cb8-172" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-173"><a href="#cb8-173" aria-hidden="true" tabindex="-1"></a><span class="al">![0cc7e3db.png](../attachments/0cc7e3db.png)</span>{width=50%}</span>
+<span id="cb8-174"><a href="#cb8-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-175"><a href="#cb8-175" aria-hidden="true" tabindex="-1"></a><span class="al">![6826c3c0.png](../attachments/6826c3c0.png)</span>{width=70%}</span>
+<span id="cb8-176"><a href="#cb8-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-177"><a href="#cb8-177" aria-hidden="true" tabindex="-1"></a>从上图的硬件架构上看，越是靠近 SM 核心的存储，读写速度就越快。上图中 L1 Cache 则是 FlashAttention 中的 SRAM，为每个 SM 独占，L2 Cache 是所有 SM 共享，再往下就是 HMB。所以在算法计算中，如果读写全部在 SRAM 上，将达到 IO 速度的上限，计算自然就快了。</span>
+<span id="cb8-178"><a href="#cb8-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-179"><a href="#cb8-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-180"><a href="#cb8-180" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.3 Standard Attention</span></span>
+<span id="cb8-181"><a href="#cb8-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-182"><a href="#cb8-182" aria-hidden="true" tabindex="-1"></a>Given input sequences $Q, K, V \in \mathbb{R}^{N \times d}$ where $N$ is the sequence length and $d$ is the head dimension, we want to compute the attention output $O \in \mathbb{R}^{N \times d}$:</span>
+<span id="cb8-183"><a href="#cb8-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-184"><a href="#cb8-184" aria-hidden="true" tabindex="-1"></a>$$ S = QK^T \in \mathbb{R}^{N \times N}, P = softmax(S) \in \mathbb{R}^{N \times N}, O = PV \in \mathbb{R}^{N \times d} $$</span>
+<span id="cb8-185"><a href="#cb8-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-186"><a href="#cb8-186" aria-hidden="true" tabindex="-1"></a>标准 Attention 的算法如下，所有中间结果储存在 HBM，空间复杂度最高的是 $O(N^2)$ 的 $S$ 和 $P$，对于 HBM 的 IO(读写) 复杂度是 $O(Nd+N^2)$</span>
+<span id="cb8-187"><a href="#cb8-187" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-188"><a href="#cb8-188" aria-hidden="true" tabindex="-1"></a><span class="al">![7e5428b9.png](../attachments/7e5428b9.png)</span>{width=70%}</span>
+<span id="cb8-189"><a href="#cb8-189" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-190"><a href="#cb8-190" aria-hidden="true" tabindex="-1"></a>Standard attention implementations materialize the matrices $S$ and $P$ to HBM, which **takes $O(N^2)$ memory**. Often $N\gg d$ (e.g., for GPT2, $N=1024$ and $d=64$(**single head dim**)). We describe the standard attention implementation in Algorithm `0`. As some or most of the operations are **memory-bound** (e.g., softmax), the large number of memory accesses translates to slow wall-clock time.</span>
+<span id="cb8-191"><a href="#cb8-191" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-192"><a href="#cb8-192" aria-hidden="true" tabindex="-1"></a>This problem is exacerbated(恶化) by other **elementwise operations** applied to the attention matrix, such as masking applied to $S$ or dropout applied to $P$. </span>
+<span id="cb8-193"><a href="#cb8-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-194"><a href="#cb8-194" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.4 FlashAttention</span></span>
+<span id="cb8-195"><a href="#cb8-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-196"><a href="#cb8-196" aria-hidden="true" tabindex="-1"></a>FlashAttention 的核心理念是尽可能少读写 HBM，在具体实现上采用了 **tiling**（分块）和 recompute（重新计算 $S$ 和 $P$，因为 forward 过程中不存储 $O(N^2)$ 的 Attention Scores，但是反向需要用到，所以采用了重新计算。）</span>
+<span id="cb8-197"><a href="#cb8-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-198"><a href="#cb8-198" aria-hidden="true" tabindex="-1"></a><span class="al">![718d7308.png](../attachments/718d7308.png)</span>{width=80%}</span>
+<span id="cb8-199"><a href="#cb8-199" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-200"><a href="#cb8-200" aria-hidden="true" tabindex="-1"></a>同样对 FlashAttention 进行 IO 复杂度分析，$M$ 为单个流式处理器的 L1 Cache（大小约100KB，A100 中有 108 个 SM，每个 SM L1 Cache 是 192KB，总计约 20MB），$d$ 是 single head dim（一般是64/128）。</span>
+<span id="cb8-201"><a href="#cb8-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-202"><a href="#cb8-202" aria-hidden="true" tabindex="-1"></a>首先我们看 Outer Loop，一次 Loop 会访问一遍完整的 $K$ 和 $V$，IO 复杂度是 $O(Nd)$。</span>
+<span id="cb8-203"><a href="#cb8-203" aria-hidden="true" tabindex="-1"></a>对于 Inner Loop，一次 Loop 会访问一遍完整的 $Q$，为 $O(Nd)$；Inner Loop 的次数 $T_c = \lceil{\frac{N}{B_c}}\rceil$，为 $O(NdM^{-1})$，相乘可以得到 Inner Loop 的 IO 复杂度是 $O(N^2d^2M^{-1})$，因此 FlashAttention 算法整体的 IO 复杂度为 $O(Nd + N^2d^2M^{-1})$。</span>
+<span id="cb8-204"><a href="#cb8-204" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-205"><a href="#cb8-205" aria-hidden="true" tabindex="-1"></a>对比标准 Attention 的 $O(Nd+N^2)$，因为 $\frac{d^2}{M}\ll1$，因此对于 HBM 的 IO 复杂度得到了显著的降低。此外，再加上 kernel fusion，进一步对计算加速。</span>
+<span id="cb8-206"><a href="#cb8-206" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-207"><a href="#cb8-207" aria-hidden="true" tabindex="-1"></a>同时，因为不需要存储 $S$ 和 $P$（$O(N^2)$），$m$ 和 $l$ 的开销小（$O(N)$），空间复杂度从标准的 $O(N^2d)$ 降低到了 $O(Nd)$。</span>
+<span id="cb8-208"><a href="#cb8-208" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-209"><a href="#cb8-209" aria-hidden="true" tabindex="-1"></a><span class="al">![c8105e32.png](../attachments/c8105e32.png)</span>{width=80%}</span>
+<span id="cb8-210"><a href="#cb8-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-211"><a href="#cb8-211" aria-hidden="true" tabindex="-1"></a>注意上图左侧中，Linformer Attention 和 OpenAI Sparse Attention 不是 **exact** Attention。</span>
+<span id="cb8-212"><a href="#cb8-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-213"><a href="#cb8-213" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3.5 代码实现</span></span>
+<span id="cb8-214"><a href="#cb8-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-215"><a href="#cb8-215" aria-hidden="true" tabindex="-1"></a>沿用 Online Softmax 的框架，并从 1d 的 chunk-wise 拓展到 2d 的 block-wise。模型一个 SM 单元中的计算逻辑，此处用 numpy 验证其准确性，无加速效果，只减少了空间复杂度。简单起见忽略了 mask，dropout等细节。</span>
+<span id="cb8-216"><a href="#cb8-216" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-217"><a href="#cb8-217" aria-hidden="true" tabindex="-1"></a>关于 backward 的计算，感兴趣的可以自行查看论文，核心思想是重新计算 $S$ 和 $P$，把前向中没有存储的变量进行 recompute，搭回反向的通道。</span>
+<span id="cb8-218"><a href="#cb8-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-221"><a href="#cb8-221" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-222"><a href="#cb8-222" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flash_attention(</span>
+<span id="cb8-223"><a href="#cb8-223" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray, Br: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>, Bc: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb8-224"><a href="#cb8-224" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-225"><a href="#cb8-225" aria-hidden="true" tabindex="-1"></a>    N, d <span class="op">=</span> Q.shape</span>
+<span id="cb8-226"><a href="#cb8-226" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.zeros_like(Q)  <span class="co"># Alloc memory for `O` in HBM</span></span>
+<span id="cb8-227"><a href="#cb8-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-228"><a href="#cb8-228" aria-hidden="true" tabindex="-1"></a>    outer_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Bc))</span>
+<span id="cb8-229"><a href="#cb8-229" aria-hidden="true" tabindex="-1"></a>    inner_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Br))</span>
+<span id="cb8-230"><a href="#cb8-230" aria-hidden="true" tabindex="-1"></a>    m_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb8-231"><a href="#cb8-231" aria-hidden="true" tabindex="-1"></a>    l_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb8-232"><a href="#cb8-232" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-233"><a href="#cb8-233" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(outer_loop_steps):</span>
+<span id="cb8-234"><a href="#cb8-234" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(inner_loop_steps):</span>
+<span id="cb8-235"><a href="#cb8-235" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Get chunk data</span></span>
+<span id="cb8-236"><a href="#cb8-236" aria-hidden="true" tabindex="-1"></a>            chunk_q <span class="op">=</span> Q[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]  <span class="co"># (Br, d)</span></span>
+<span id="cb8-237"><a href="#cb8-237" aria-hidden="true" tabindex="-1"></a>            chunk_k <span class="op">=</span> K[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb8-238"><a href="#cb8-238" aria-hidden="true" tabindex="-1"></a>            chunk_v <span class="op">=</span> V[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb8-239"><a href="#cb8-239" aria-hidden="true" tabindex="-1"></a>            m_x <span class="op">=</span> m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-240"><a href="#cb8-240" aria-hidden="true" tabindex="-1"></a>            l_x <span class="op">=</span> l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-241"><a href="#cb8-241" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-242"><a href="#cb8-242" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 1. Perform attention on block data.</span></span>
+<span id="cb8-243"><a href="#cb8-243" aria-hidden="true" tabindex="-1"></a>            chunk_s <span class="op">=</span> np.matmul(chunk_q, chunk_k.T)  <span class="co"># (Br, Bc)</span></span>
+<span id="cb8-244"><a href="#cb8-244" aria-hidden="true" tabindex="-1"></a>            chunk_m_x <span class="op">=</span> np.<span class="bu">max</span>(chunk_s, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-245"><a href="#cb8-245" aria-hidden="true" tabindex="-1"></a>            chunk_f_x <span class="op">=</span> np.exp(chunk_s <span class="op">-</span> np.expand_dims(chunk_m_x, <span class="dv">1</span>))</span>
+<span id="cb8-246"><a href="#cb8-246" aria-hidden="true" tabindex="-1"></a>            chunk_l_x <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-247"><a href="#cb8-247" aria-hidden="true" tabindex="-1"></a>            chunk_p <span class="op">=</span> chunk_f_x <span class="op">/</span> np.expand_dims(chunk_l_x, <span class="dv">1</span>)</span>
+<span id="cb8-248"><a href="#cb8-248" aria-hidden="true" tabindex="-1"></a>            chunk_o <span class="op">=</span> np.matmul(chunk_p, chunk_v)</span>
+<span id="cb8-249"><a href="#cb8-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-250"><a href="#cb8-250" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 2. Update `GLOBAL` stats.</span></span>
+<span id="cb8-251"><a href="#cb8-251" aria-hidden="true" tabindex="-1"></a>            m_x_new <span class="op">=</span> np.maximum(m_x, chunk_m_x)</span>
+<span id="cb8-252"><a href="#cb8-252" aria-hidden="true" tabindex="-1"></a>            l_x_new <span class="op">=</span> l_x <span class="op">*</span> np.exp(m_x <span class="op">-</span> m_x_new) <span class="op">+</span> chunk_l_x <span class="op">*</span> np.exp(</span>
+<span id="cb8-253"><a href="#cb8-253" aria-hidden="true" tabindex="-1"></a>                chunk_m_x <span class="op">-</span> m_x_new</span>
+<span id="cb8-254"><a href="#cb8-254" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-255"><a href="#cb8-255" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-256"><a href="#cb8-256" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 3. Rescale and update `GLOBAL` output.</span></span>
+<span id="cb8-257"><a href="#cb8-257" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Rescale(Old)</span></span>
+<span id="cb8-258"><a href="#cb8-258" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> (</span>
+<span id="cb8-259"><a href="#cb8-259" aria-hidden="true" tabindex="-1"></a>                O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-260"><a href="#cb8-260" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(l_x, <span class="dv">1</span>)</span>
+<span id="cb8-261"><a href="#cb8-261" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb8-262"><a href="#cb8-262" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="dv">1</span>)</span>
+<span id="cb8-263"><a href="#cb8-263" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-264"><a href="#cb8-264" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Update(New)</span></span>
+<span id="cb8-265"><a href="#cb8-265" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">+=</span> (</span>
+<span id="cb8-266"><a href="#cb8-266" aria-hidden="true" tabindex="-1"></a>                chunk_o</span>
+<span id="cb8-267"><a href="#cb8-267" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(chunk_m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb8-268"><a href="#cb8-268" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-269"><a href="#cb8-269" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-270"><a href="#cb8-270" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-271"><a href="#cb8-271" aria-hidden="true" tabindex="-1"></a>            m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> m_x_new</span>
+<span id="cb8-272"><a href="#cb8-272" aria-hidden="true" tabindex="-1"></a>            l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> l_x_new</span>
+<span id="cb8-273"><a href="#cb8-273" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-274"><a href="#cb8-274" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-275"><a href="#cb8-275" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-276"><a href="#cb8-276" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-277"><a href="#cb8-277" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-278"><a href="#cb8-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-279"><a href="#cb8-279" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. PagedAttention</span></span>
+<span id="cb8-280"><a href="#cb8-280" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-281"><a href="#cb8-281" aria-hidden="true" tabindex="-1"></a>PagedAttention 的核心是提升显存利用效率，减少存储碎片，最终达到提升服务吞吐量的效果，不同于 FlashAttention，它对单一的序列生成理论上没有加速效果。</span>
+<span id="cb8-282"><a href="#cb8-282" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-283"><a href="#cb8-283" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.1 KV Cache</span></span>
+<span id="cb8-284"><a href="#cb8-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-285"><a href="#cb8-285" aria-hidden="true" tabindex="-1"></a><span class="al">![24972e88.png](../attachments/24972e88.png)</span>{width=50%}</span>
+<span id="cb8-286"><a href="#cb8-286" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-287"><a href="#cb8-287" aria-hidden="true" tabindex="-1"></a>First, the existing systems suffer from internal and external memory fragmentation. To store the KV cache of a request in contiguous space, they **pre-allocate** a contiguous chunk of memory with the request’s maximum length(e.g., 2048 tokens).</span>
+<span id="cb8-288"><a href="#cb8-288" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-289"><a href="#cb8-289" aria-hidden="true" tabindex="-1"></a>LLM 模型在做推理时，会对 KV Cache 进行提前的显存分配。因为解码前不知道一个序列最终长度是多少（等待 EOS 或者最长时截断），模型会根据用户传参（max_length）来分配一段最大的**连续**的显存空间，等待自回归解码时逐个填充（此处用 greedy decoding and sampling 来举例，如果是其他解码方案，显存的分配会更多）。</span>
+<span id="cb8-290"><a href="#cb8-290" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-291"><a href="#cb8-291" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.2 Memory Fragmentation</span></span>
+<span id="cb8-292"><a href="#cb8-292" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-293"><a href="#cb8-293" aria-hidden="true" tabindex="-1"></a><span class="al">![c7d061fa.png](../attachments/c7d061fa.png)</span></span>
+<span id="cb8-294"><a href="#cb8-294" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-295"><a href="#cb8-295" aria-hidden="true" tabindex="-1"></a>上图展示了三种不同的显存浪费的情况：</span>
+<span id="cb8-296"><a href="#cb8-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-297"><a href="#cb8-297" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>reserved: 当前解码时刻还未用到的显存(但是后面将会使用，假设我们已经知道输出序列。)</span>
+<span id="cb8-298"><a href="#cb8-298" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>internal fragmentation: 上面提到的根据 max_length 提前分配的显存，在 batch 推理的过程中，这部分将持续占用，但不产生任何价值。</span>
+<span id="cb8-299"><a href="#cb8-299" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>external fragmentation: 推理框架（文中举例是 FT 和 Orca），在为多个序列分配各自的连续的显存空间存在的碎片区域。</span>
+<span id="cb8-300"><a href="#cb8-300" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-301"><a href="#cb8-301" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4.3 PagedAttention</span></span>
+<span id="cb8-302"><a href="#cb8-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-303"><a href="#cb8-303" aria-hidden="true" tabindex="-1"></a>In vLLM, we identify that the performance of LLM serving is bottlenecked by memory. In the autoregressive decoding process, all the input tokens to the LLM produce their attention key and value tensors, and these tensors are kept in GPU memory to generate next tokens. These cached key and value tensors are often referred to as KV cache. The KV cache is:</span>
+<span id="cb8-304"><a href="#cb8-304" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-305"><a href="#cb8-305" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Large: Takes up to 1.7GB for a single sequence in LLaMA-13B.</span>
+<span id="cb8-306"><a href="#cb8-306" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Dynamic: Its size depends on the sequence length, which is highly variable and unpredictable. As a result, efficiently managing the KV cache presents a significant challenge. We find that existing systems waste 60% – 80% of memory due to fragmentation and over-reservation.</span>
+<span id="cb8-307"><a href="#cb8-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-308"><a href="#cb8-308" aria-hidden="true" tabindex="-1"></a>To address this problem, we introduce **PagedAttention**, an attention algorithm inspired by the classic idea of **virtual memory and paging in operating systems**. Unlike the traditional attention algorithms, PagedAttention **allows storing continuous keys and values in non-contiguous memory space**. Specifically, PagedAttention partitions the KV cache of each sequence into blocks, each block containing the keys and values for a fixed number of tokens. During the attention computation, the PagedAttention kernel identifies and fetches these blocks efficiently.</span>
+<span id="cb8-309"><a href="#cb8-309" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-310"><a href="#cb8-310" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.1 Memory Block</span></span>
+<span id="cb8-311"><a href="#cb8-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-312"><a href="#cb8-312" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation0.gif](../attachments/annimation0.gif)</span>{width=70%}</span>
+<span id="cb8-313"><a href="#cb8-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-314"><a href="#cb8-314" aria-hidden="true" tabindex="-1"></a>上图演示的是最新一个 token <span class="in">`for`</span> 对于已有的序列（可以是输入的 prompt）<span class="in">`Alan Turing is a computer scientist and mathematician renowned for`</span> 做 Attention 的过程。图示中以 Block 分块管理显存，以达到用**不连续**代替连续的显存空间。</span>
+<span id="cb8-315"><a href="#cb8-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-316"><a href="#cb8-316" aria-hidden="true" tabindex="-1"></a>PagedAttention 想要达到最小化的显存浪费，在上文中介绍的 <span class="in">`reserved`</span> 和 <span class="in">`external fragmentation`</span>在这种方式下可以完全清除，但 <span class="in">`internal fragmentation`</span> 无法完全消除。图中 Block 的 size 为 4，在 Block 2 中存在 2 个单元的碎片浪费。</span>
+<span id="cb8-317"><a href="#cb8-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-318"><a href="#cb8-318" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.2  Block table</span></span>
+<span id="cb8-319"><a href="#cb8-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-320"><a href="#cb8-320" aria-hidden="true" tabindex="-1"></a>Because the blocks do not need to be contiguous in memory, we can manage the keys and values in a more flexible way as in OS’s virtual memory: one can think of blocks as pages, tokens as bytes, and sequences as processes. The contiguous **logical blocks** of a sequence are mapped to non-contiguous **physical blocks** via a **block table**. The physical blocks are allocated on demand as new tokens are generated.</span>
+<span id="cb8-321"><a href="#cb8-321" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-322"><a href="#cb8-322" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation1.gif](../attachments/annimation1.gif)</span>{width=70%}</span>
+<span id="cb8-323"><a href="#cb8-323" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-324"><a href="#cb8-324" aria-hidden="true" tabindex="-1"></a>PagedAttention 在实现上采用了 KV Cache Manager 维护了多张 Block table，表里存着 logical blocks 到 phsical blocks 的映射。并且，为了尽量消除 <span class="in">`internal fragmentation`</span>，他实现了动态的显存分配管理。</span>
+<span id="cb8-325"><a href="#cb8-325" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-326"><a href="#cb8-326" aria-hidden="true" tabindex="-1"></a><span class="fu">#### 4.3.3 Memory Sharing</span></span>
+<span id="cb8-327"><a href="#cb8-327" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-328"><a href="#cb8-328" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation2.gif](../attachments/annimation2.gif)</span>{width=70%}</span>
+<span id="cb8-329"><a href="#cb8-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-330"><a href="#cb8-330" aria-hidden="true" tabindex="-1"></a>在 LLM 解码过程中，我们可能会采取多种解码方式扩大搜索空间，如 Parallel sampling、Beam Search 等。此类解码方式将会输出多个 candidates。有个直观的感受是，在多序列生成过程中，大概率会以一个**树状**的样式增长，因此有可能可以共享某些 KV Cache。然而在传统解码模式下，因为 KV Cache 分开存放在连续的显存空间，显存的占用将会线性增长，无法达成 KV Cache 的共享。 </span>
+<span id="cb8-331"><a href="#cb8-331" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-332"><a href="#cb8-332" aria-hidden="true" tabindex="-1"></a>PagedAttention 以引用计数和 Copy-on-Write 的特性实现了多序列生成的 KV Cache 共享具体，Parallel sampling 的解码流程如下图所示：</span>
+<span id="cb8-333"><a href="#cb8-333" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-334"><a href="#cb8-334" aria-hidden="true" tabindex="-1"></a><span class="al">![annimation3.gif](../attachments/annimation3.gif)</span>{width=70%}</span>
+<span id="cb8-335"><a href="#cb8-335" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-336"><a href="#cb8-336" aria-hidden="true" tabindex="-1"></a>在 Beam Search 的场景下，则会管理一个树状结构，在最新时刻的解码结果出现后，可以将废弃的 Block 进行剪枝回收。如下图示例，Beam width 为4，虚线左侧是 $t-1$ 时刻的 KV Cache 占用情况，当 $t$ 时刻解码完成后，最新的 Block9~12 依赖的 KV Cache 全部来自 Block6 和 Block7，则 Block2、4、5、8 的显存将被回收。</span>
+<span id="cb8-337"><a href="#cb8-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-338"><a href="#cb8-338" aria-hidden="true" tabindex="-1"></a>../attachments</span>
+<span id="cb8-339"><a href="#cb8-339" aria-hidden="true" tabindex="-1"></a><span class="al">![fc7f0992.png](../attachments/fc7f0992.png)</span>{width=60%}</span>
+<span id="cb8-340"><a href="#cb8-340" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-341"><a href="#cb8-341" aria-hidden="true" tabindex="-1"></a>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the **earliest** arrived requests are **served first** and the **latest** requests are **preempted first**。具体实现方式有:</span>
+<span id="cb8-342"><a href="#cb8-342" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-343"><a href="#cb8-343" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Swapping: latest requests 占用的 Block 将会被放入 CPU RAM，等待前方解码完成释放空间后，再从 CPU RAM 中重新取回显存。</span>
+<span id="cb8-344"><a href="#cb8-344" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Recomputation: 直接释放 latest requests 占用的 Block，后续将重新计算得到 KV Cache（在这里重新计算是很快的，因为我们已知当前所有的 token，直接用 Masked Attention并行计算）。</span>
+<span id="cb8-345"><a href="#cb8-345" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-346"><a href="#cb8-346" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-347"><a href="#cb8-347" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-348"><a href="#cb8-348" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. 抛砖引玉</span></span>
+<span id="cb8-349"><a href="#cb8-349" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-350"><a href="#cb8-350" aria-hidden="true" tabindex="-1"></a>此次分享专注的是 Transformer 在计算和推理上结构优化，该类方法主要通过优化 Transformer 的结构以实现推理性能的提升。</span>
+<span id="cb8-351"><a href="#cb8-351" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-352"><a href="#cb8-352" aria-hidden="true" tabindex="-1"></a>当前 LLM 加速技术是热门的研究方向，目前包括但不限于以下几点(<span class="co">[</span><span class="ot">NLP（十八）：LLM 的推理优化技术纵览</span><span class="co">](https://zhuanlan.zhihu.com/p/642412124)</span>)：</span>
+<span id="cb8-353"><a href="#cb8-353" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-354"><a href="#cb8-354" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>子图融合（subgraph fusion）</span>
+<span id="cb8-355"><a href="#cb8-355" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>模型压缩（Model Compression）</span>
+<span id="cb8-356"><a href="#cb8-356" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>并行化（Parallelism）</span>
+<span id="cb8-357"><a href="#cb8-357" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Transformer 结构优化</span>
+<span id="cb8-358"><a href="#cb8-358" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>动态批处理（Dynamic Batch, Continuous batch）</span>
+<span id="cb8-359"><a href="#cb8-359" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>KV cache 优化</span>
+<span id="cb8-360"><a href="#cb8-360" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>投机采样与MoE</span>
+<span id="cb8-361"><a href="#cb8-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-362"><a href="#cb8-362" aria-hidden="true" tabindex="-1"></a>**一起学习、讨论和进步。**</span>
+<span id="cb8-363"><a href="#cb8-363" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-364"><a href="#cb8-364" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. 附录：测试脚本</span></span>
+<span id="cb8-365"><a href="#cb8-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-366"><a href="#cb8-366" aria-hidden="true" tabindex="-1"></a>附上2个完整的可执行脚本，有兴趣的可以运行并查看对比结果。</span>
+<span id="cb8-367"><a href="#cb8-367" aria-hidden="true" tabindex="-1"></a>由于只展示理论的计算流程，在CPU单线程上做的模拟计算，实际没有任何的加速。</span>
+<span id="cb8-368"><a href="#cb8-368" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-369"><a href="#cb8-369" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.1 online_softmax.py</span></span>
+<span id="cb8-370"><a href="#cb8-370" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-373"><a href="#cb8-373" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-374"><a href="#cb8-374" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
+<span id="cb8-375"><a href="#cb8-375" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb8-376"><a href="#cb8-376" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-377"><a href="#cb8-377" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-378"><a href="#cb8-378" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> safe_softmax(x: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-379"><a href="#cb8-379" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.<span class="bu">max</span>(x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-380"><a href="#cb8-380" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.expand_dims(m, <span class="dv">1</span>)</span>
+<span id="cb8-381"><a href="#cb8-381" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.<span class="bu">sum</span>(np.exp(x <span class="op">-</span> m), axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-382"><a href="#cb8-382" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb8-383"><a href="#cb8-383" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.exp(x <span class="op">-</span> m) <span class="op">/</span> d</span>
+<span id="cb8-384"><a href="#cb8-384" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-385"><a href="#cb8-385" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> y</span>
+<span id="cb8-386"><a href="#cb8-386" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-387"><a href="#cb8-387" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-388"><a href="#cb8-388" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> online_softmax(x: np.ndarray, chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-389"><a href="#cb8-389" aria-hidden="true" tabindex="-1"></a>    num_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(x.shape[<span class="dv">1</span>] <span class="op">/</span> chunk_size))</span>
+<span id="cb8-390"><a href="#cb8-390" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb8-391"><a href="#cb8-391" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb8-392"><a href="#cb8-392" aria-hidden="true" tabindex="-1"></a>    softmax <span class="op">=</span> np.zeros_like(x)</span>
+<span id="cb8-393"><a href="#cb8-393" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-394"><a href="#cb8-394" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_steps):</span>
+<span id="cb8-395"><a href="#cb8-395" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get chunk data</span></span>
+<span id="cb8-396"><a href="#cb8-396" aria-hidden="true" tabindex="-1"></a>        chunk_x <span class="op">=</span> x[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size]</span>
+<span id="cb8-397"><a href="#cb8-397" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-398"><a href="#cb8-398" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 1. Perform local softmax on chunk data.</span></span>
+<span id="cb8-399"><a href="#cb8-399" aria-hidden="true" tabindex="-1"></a>        chunk_m <span class="op">=</span> np.<span class="bu">max</span>(chunk_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-400"><a href="#cb8-400" aria-hidden="true" tabindex="-1"></a>        chunk_f <span class="op">=</span> np.exp(chunk_x <span class="op">-</span> np.expand_dims(chunk_m, <span class="dv">1</span>))</span>
+<span id="cb8-401"><a href="#cb8-401" aria-hidden="true" tabindex="-1"></a>        chunk_d <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-402"><a href="#cb8-402" aria-hidden="true" tabindex="-1"></a>        chunk_softmax <span class="op">=</span> chunk_f <span class="op">/</span> np.expand_dims(chunk_d, <span class="dv">1</span>)</span>
+<span id="cb8-403"><a href="#cb8-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-404"><a href="#cb8-404" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 2. Get new m_x and l_x.</span></span>
+<span id="cb8-405"><a href="#cb8-405" aria-hidden="true" tabindex="-1"></a>        m_new <span class="op">=</span> np.maximum(m, chunk_m)</span>
+<span id="cb8-406"><a href="#cb8-406" aria-hidden="true" tabindex="-1"></a>        d_new <span class="op">=</span> d <span class="op">*</span> np.exp(m <span class="op">-</span> m_new) <span class="op">+</span> chunk_d <span class="op">*</span> np.exp(chunk_m <span class="op">-</span> m_new)</span>
+<span id="cb8-407"><a href="#cb8-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-408"><a href="#cb8-408" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 3. Rescale(OLD + NEW) and concat(NEW) softmax values.</span></span>
+<span id="cb8-409"><a href="#cb8-409" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale</span></span>
+<span id="cb8-410"><a href="#cb8-410" aria-hidden="true" tabindex="-1"></a>        softmax <span class="op">=</span> (</span>
+<span id="cb8-411"><a href="#cb8-411" aria-hidden="true" tabindex="-1"></a>            softmax</span>
+<span id="cb8-412"><a href="#cb8-412" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb8-413"><a href="#cb8-413" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb8-414"><a href="#cb8-414" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="dv">1</span>)</span>
+<span id="cb8-415"><a href="#cb8-415" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-416"><a href="#cb8-416" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale and concat</span></span>
+<span id="cb8-417"><a href="#cb8-417" aria-hidden="true" tabindex="-1"></a>        softmax[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size] <span class="op">=</span> (</span>
+<span id="cb8-418"><a href="#cb8-418" aria-hidden="true" tabindex="-1"></a>            chunk_softmax</span>
+<span id="cb8-419"><a href="#cb8-419" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(chunk_d, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-420"><a href="#cb8-420" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(chunk_m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb8-421"><a href="#cb8-421" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-422"><a href="#cb8-422" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-423"><a href="#cb8-423" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-424"><a href="#cb8-424" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 4. Update m_x and l_x from CURRENT global info.</span></span>
+<span id="cb8-425"><a href="#cb8-425" aria-hidden="true" tabindex="-1"></a>        m <span class="op">=</span> m_new</span>
+<span id="cb8-426"><a href="#cb8-426" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d_new</span>
+<span id="cb8-427"><a href="#cb8-427" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-428"><a href="#cb8-428" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> softmax</span>
+<span id="cb8-429"><a href="#cb8-429" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-430"><a href="#cb8-430" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-431"><a href="#cb8-431" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_online_softmax():</span>
+<span id="cb8-432"><a href="#cb8-432" aria-hidden="true" tabindex="-1"></a>    BATCH_SIZE <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb8-433"><a href="#cb8-433" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">4</span></span>
+<span id="cb8-434"><a href="#cb8-434" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-435"><a href="#cb8-435" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb8-436"><a href="#cb8-436" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((BATCH_SIZE, SEQ_LENGTH))</span>
+<span id="cb8-437"><a href="#cb8-437" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-438"><a href="#cb8-438" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-439"><a href="#cb8-439" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(x)</span>
+<span id="cb8-440"><a href="#cb8-440" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-441"><a href="#cb8-441" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Safe Softmax</span></span>
+<span id="cb8-442"><a href="#cb8-442" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"safe_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-443"><a href="#cb8-443" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> safe_softmax(x)</span>
+<span id="cb8-444"><a href="#cb8-444" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y1)</span>
+<span id="cb8-445"><a href="#cb8-445" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-446"><a href="#cb8-446" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Online Softmax</span></span>
+<span id="cb8-447"><a href="#cb8-447" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"online_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-448"><a href="#cb8-448" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> online_softmax(x)</span>
+<span id="cb8-449"><a href="#cb8-449" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y2)</span>
+<span id="cb8-450"><a href="#cb8-450" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-451"><a href="#cb8-451" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
+<span id="cb8-452"><a href="#cb8-452" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-453"><a href="#cb8-453" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(np.allclose(y1, y2))</span>
+<span id="cb8-454"><a href="#cb8-454" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-455"><a href="#cb8-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-456"><a href="#cb8-456" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb8-457"><a href="#cb8-457" aria-hidden="true" tabindex="-1"></a>    test_online_softmax()</span>
+<span id="cb8-458"><a href="#cb8-458" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-459"><a href="#cb8-459" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-460"><a href="#cb8-460" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb8-461"><a href="#cb8-461" aria-hidden="true" tabindex="-1"></a>    main()</span>
+<span id="cb8-462"><a href="#cb8-462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-463"><a href="#cb8-463" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-464"><a href="#cb8-464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-465"><a href="#cb8-465" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-466"><a href="#cb8-466" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.2 flash_attention.py</span></span>
+<span id="cb8-467"><a href="#cb8-467" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-470"><a href="#cb8-470" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-471"><a href="#cb8-471" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
+<span id="cb8-472"><a href="#cb8-472" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb8-473"><a href="#cb8-473" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb8-474"><a href="#cb8-474" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.nn.functional <span class="im">import</span> scaled_dot_product_attention</span>
+<span id="cb8-475"><a href="#cb8-475" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-476"><a href="#cb8-476" aria-hidden="true" tabindex="-1"></a><span class="co"># from online_softmax import safe_softmax</span></span>
+<span id="cb8-477"><a href="#cb8-477" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-478"><a href="#cb8-478" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-479"><a href="#cb8-479" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention_from_torch(</span>
+<span id="cb8-480"><a href="#cb8-480" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray</span>
+<span id="cb8-481"><a href="#cb8-481" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-482"><a href="#cb8-482" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> (</span>
+<span id="cb8-483"><a href="#cb8-483" aria-hidden="true" tabindex="-1"></a>        scaled_dot_product_attention(</span>
+<span id="cb8-484"><a href="#cb8-484" aria-hidden="true" tabindex="-1"></a>            torch.from_numpy(Q), torch.from_numpy(K), torch.from_numpy(V), scale<span class="op">=</span><span class="fl">1.0</span></span>
+<span id="cb8-485"><a href="#cb8-485" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-486"><a href="#cb8-486" aria-hidden="true" tabindex="-1"></a>        .cpu()</span>
+<span id="cb8-487"><a href="#cb8-487" aria-hidden="true" tabindex="-1"></a>        .numpy()</span>
+<span id="cb8-488"><a href="#cb8-488" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-489"><a href="#cb8-489" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-490"><a href="#cb8-490" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-491"><a href="#cb8-491" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-492"><a href="#cb8-492" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-493"><a href="#cb8-493" aria-hidden="true" tabindex="-1"></a>    S <span class="op">=</span> np.matmul(Q, K.T)  <span class="co"># Dot-Product Attention</span></span>
+<span id="cb8-494"><a href="#cb8-494" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> safe_softmax(S)  <span class="co"># (N, N)</span></span>
+<span id="cb8-495"><a href="#cb8-495" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.matmul(P, V)  <span class="co"># (N, d)</span></span>
+<span id="cb8-496"><a href="#cb8-496" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-497"><a href="#cb8-497" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-498"><a href="#cb8-498" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-499"><a href="#cb8-499" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-500"><a href="#cb8-500" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flash_attention(</span>
+<span id="cb8-501"><a href="#cb8-501" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray, Br: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>, Bc: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb8-502"><a href="#cb8-502" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-503"><a href="#cb8-503" aria-hidden="true" tabindex="-1"></a>    N, d <span class="op">=</span> Q.shape</span>
+<span id="cb8-504"><a href="#cb8-504" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.zeros_like(Q)  <span class="co"># Alloc memory for `O` in HBM</span></span>
+<span id="cb8-505"><a href="#cb8-505" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-506"><a href="#cb8-506" aria-hidden="true" tabindex="-1"></a>    outer_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Bc))</span>
+<span id="cb8-507"><a href="#cb8-507" aria-hidden="true" tabindex="-1"></a>    inner_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Br))</span>
+<span id="cb8-508"><a href="#cb8-508" aria-hidden="true" tabindex="-1"></a>    m_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb8-509"><a href="#cb8-509" aria-hidden="true" tabindex="-1"></a>    l_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb8-510"><a href="#cb8-510" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-511"><a href="#cb8-511" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(outer_loop_steps):</span>
+<span id="cb8-512"><a href="#cb8-512" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(inner_loop_steps):</span>
+<span id="cb8-513"><a href="#cb8-513" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Get chunk data</span></span>
+<span id="cb8-514"><a href="#cb8-514" aria-hidden="true" tabindex="-1"></a>            chunk_q <span class="op">=</span> Q[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]  <span class="co"># (Br, d)</span></span>
+<span id="cb8-515"><a href="#cb8-515" aria-hidden="true" tabindex="-1"></a>            chunk_k <span class="op">=</span> K[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb8-516"><a href="#cb8-516" aria-hidden="true" tabindex="-1"></a>            chunk_v <span class="op">=</span> V[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb8-517"><a href="#cb8-517" aria-hidden="true" tabindex="-1"></a>            m_x <span class="op">=</span> m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-518"><a href="#cb8-518" aria-hidden="true" tabindex="-1"></a>            l_x <span class="op">=</span> l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-519"><a href="#cb8-519" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-520"><a href="#cb8-520" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 1. Perform attention on block data.</span></span>
+<span id="cb8-521"><a href="#cb8-521" aria-hidden="true" tabindex="-1"></a>            chunk_s <span class="op">=</span> np.matmul(chunk_q, chunk_k.T)  <span class="co"># (Br, Bc)</span></span>
+<span id="cb8-522"><a href="#cb8-522" aria-hidden="true" tabindex="-1"></a>            chunk_m_x <span class="op">=</span> np.<span class="bu">max</span>(chunk_s, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-523"><a href="#cb8-523" aria-hidden="true" tabindex="-1"></a>            chunk_f_x <span class="op">=</span> np.exp(chunk_s <span class="op">-</span> np.expand_dims(chunk_m_x, <span class="dv">1</span>))</span>
+<span id="cb8-524"><a href="#cb8-524" aria-hidden="true" tabindex="-1"></a>            chunk_l_x <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-525"><a href="#cb8-525" aria-hidden="true" tabindex="-1"></a>            chunk_p <span class="op">=</span> chunk_f_x <span class="op">/</span> np.expand_dims(chunk_l_x, <span class="dv">1</span>)</span>
+<span id="cb8-526"><a href="#cb8-526" aria-hidden="true" tabindex="-1"></a>            chunk_o <span class="op">=</span> np.matmul(chunk_p, chunk_v)</span>
+<span id="cb8-527"><a href="#cb8-527" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-528"><a href="#cb8-528" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 2. Update `GLOBAL` stats.</span></span>
+<span id="cb8-529"><a href="#cb8-529" aria-hidden="true" tabindex="-1"></a>            m_x_new <span class="op">=</span> np.maximum(m_x, chunk_m_x)</span>
+<span id="cb8-530"><a href="#cb8-530" aria-hidden="true" tabindex="-1"></a>            l_x_new <span class="op">=</span> l_x <span class="op">*</span> np.exp(m_x <span class="op">-</span> m_x_new) <span class="op">+</span> chunk_l_x <span class="op">*</span> np.exp(</span>
+<span id="cb8-531"><a href="#cb8-531" aria-hidden="true" tabindex="-1"></a>                chunk_m_x <span class="op">-</span> m_x_new</span>
+<span id="cb8-532"><a href="#cb8-532" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-533"><a href="#cb8-533" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-534"><a href="#cb8-534" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 3. Rescale and update `GLOBAL` output.</span></span>
+<span id="cb8-535"><a href="#cb8-535" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Rescale(Old)</span></span>
+<span id="cb8-536"><a href="#cb8-536" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> (</span>
+<span id="cb8-537"><a href="#cb8-537" aria-hidden="true" tabindex="-1"></a>                O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-538"><a href="#cb8-538" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(l_x, <span class="dv">1</span>)</span>
+<span id="cb8-539"><a href="#cb8-539" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb8-540"><a href="#cb8-540" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="dv">1</span>)</span>
+<span id="cb8-541"><a href="#cb8-541" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-542"><a href="#cb8-542" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Update(New)</span></span>
+<span id="cb8-543"><a href="#cb8-543" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">+=</span> (</span>
+<span id="cb8-544"><a href="#cb8-544" aria-hidden="true" tabindex="-1"></a>                chunk_o</span>
+<span id="cb8-545"><a href="#cb8-545" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(chunk_m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb8-546"><a href="#cb8-546" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-547"><a href="#cb8-547" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-548"><a href="#cb8-548" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-549"><a href="#cb8-549" aria-hidden="true" tabindex="-1"></a>            m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> m_x_new</span>
+<span id="cb8-550"><a href="#cb8-550" aria-hidden="true" tabindex="-1"></a>            l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> l_x_new</span>
+<span id="cb8-551"><a href="#cb8-551" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-552"><a href="#cb8-552" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-553"><a href="#cb8-553" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-554"><a href="#cb8-554" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-555"><a href="#cb8-555" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_flash_attention():</span>
+<span id="cb8-556"><a href="#cb8-556" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">128</span></span>
+<span id="cb8-557"><a href="#cb8-557" aria-hidden="true" tabindex="-1"></a>    EMBEDDING_DIM <span class="op">=</span> <span class="dv">768</span></span>
+<span id="cb8-558"><a href="#cb8-558" aria-hidden="true" tabindex="-1"></a>    HIDDEN_DIM <span class="op">=</span> EMBEDDING_DIM</span>
+<span id="cb8-559"><a href="#cb8-559" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-560"><a href="#cb8-560" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb8-561"><a href="#cb8-561" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((SEQ_LENGTH, EMBEDDING_DIM))</span>
+<span id="cb8-562"><a href="#cb8-562" aria-hidden="true" tabindex="-1"></a>    w_q <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb8-563"><a href="#cb8-563" aria-hidden="true" tabindex="-1"></a>    w_k <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb8-564"><a href="#cb8-564" aria-hidden="true" tabindex="-1"></a>    w_v <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb8-565"><a href="#cb8-565" aria-hidden="true" tabindex="-1"></a>    Q, K, V <span class="op">=</span> [np.matmul(x, w) <span class="cf">for</span> w <span class="kw">in</span> [w_q, w_k, w_v]]</span>
+<span id="cb8-566"><a href="#cb8-566" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-567"><a href="#cb8-567" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input Shape"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-568"><a href="#cb8-568" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"x.shape: </span><span class="sc">{</span>x<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-569"><a href="#cb8-569" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_q.shape: </span><span class="sc">{</span>w_q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-570"><a href="#cb8-570" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_k.shape: </span><span class="sc">{</span>w_k<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-571"><a href="#cb8-571" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_v.shape: </span><span class="sc">{</span>w_v<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-572"><a href="#cb8-572" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Q.shape: </span><span class="sc">{</span>Q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-573"><a href="#cb8-573" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"K.shape: </span><span class="sc">{</span>K<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-574"><a href="#cb8-574" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"V.shape: </span><span class="sc">{</span>V<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-575"><a href="#cb8-575" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-576"><a href="#cb8-576" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Torch] Scale Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-577"><a href="#cb8-577" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> self_attention_from_torch(Q, K, V)</span>
+<span id="cb8-578"><a href="#cb8-578" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1.shape: </span><span class="sc">{</span>y1<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-579"><a href="#cb8-579" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-580"><a href="#cb8-580" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Vanilla Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-581"><a href="#cb8-581" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> self_attention(Q, K, V)</span>
+<span id="cb8-582"><a href="#cb8-582" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y2.shape: </span><span class="sc">{</span>y2<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-583"><a href="#cb8-583" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-584"><a href="#cb8-584" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Flash Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-585"><a href="#cb8-585" aria-hidden="true" tabindex="-1"></a>    y3 <span class="op">=</span> flash_attention(Q, K, V)</span>
+<span id="cb8-586"><a href="#cb8-586" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y3.shape: </span><span class="sc">{</span>y3<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-587"><a href="#cb8-587" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-588"><a href="#cb8-588" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
+<span id="cb8-589"><a href="#cb8-589" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-590"><a href="#cb8-590" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y2: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y2)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-591"><a href="#cb8-591" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y3: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y3)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-592"><a href="#cb8-592" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-593"><a href="#cb8-593" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-594"><a href="#cb8-594" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb8-595"><a href="#cb8-595" aria-hidden="true" tabindex="-1"></a>    test_flash_attention()</span>
+<span id="cb8-596"><a href="#cb8-596" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-597"><a href="#cb8-597" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-598"><a href="#cb8-598" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb8-599"><a href="#cb8-599" aria-hidden="true" tabindex="-1"></a>    main()</span>
+<span id="cb8-600"><a href="#cb8-600" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
