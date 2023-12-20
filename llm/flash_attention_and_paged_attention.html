@@ -74,11 +74,11 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
 <link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
-  "location": "sidebar",
+  "location": "navbar",
   "copy-button": false,
   "collapse-after": 3,
-  "panel-placement": "start",
-  "type": "textbox",
+  "panel-placement": "end",
+  "type": "overlay",
   "limit": 20,
   "language": {
     "search-no-results-text": "No results",
@@ -100,10 +100,38 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 <link rel="stylesheet" href="../styles.css">
 </head>
 
-<body class="nav-sidebar docked">
+<body class="nav-sidebar docked nav-fixed">
 
 <div id="quarto-search-results"></div>
   <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">KPatr1ck’s Blog</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll me-auto">
+  <li class="nav-item">
+    <a class="nav-link active" href="../index.html" rel="" target="" aria-current="page">
+ <span class="menu-text">Home</span></a>
+  </li>  
+  <li class="nav-item">
+    <a class="nav-link" href="../about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools ms-auto">
+    <a href="https://github.com/KPatr1ck/KPatr1ck.github.io" rel="" title="" class="quarto-navigation-tool px-1" aria-label=""><i class="bi bi-github"></i></a>
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
   <nav class="quarto-secondary-nav">
     <div class="container-fluid d-flex">
       <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar,#quarto-sidebar-glass" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
@@ -119,26 +147,9 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
   </nav>
 </header>
 <!-- content -->
-<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article">
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
 <!-- sidebar -->
   <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal sidebar-navigation docked overflow-auto">
-    <div class="pt-lg-2 mt-2 text-left sidebar-header">
-    <div class="sidebar-title mb-0 py-0">
-      <a href="../">KPatr1ck’s Blog</a> 
-        <div class="sidebar-tools-main">
-    <div class="dropdown">
-      <a href="" title="" id="quarto-navigation-tool-dropdown-0" class="quarto-navigation-tool dropdown-toggle px-1" data-bs-toggle="dropdown" aria-expanded="false" aria-label=""><i class="bi bi-github"></i></a>
-      <ul class="dropdown-menu" aria-labelledby="quarto-navigation-tool-dropdown-0">
-          <li>
-            <a class="dropdown-item sidebar-tools-main-item" href="https://github.com/KPatr1ck/KPatr1ck.github.io">
-            Source Code
-            </a>
-          </li>
-      </ul>
-    </div>
-</div>
-    </div>
-      </div>
         <div class="mt-2 flex-shrink-0 align-items-center">
         <div class="sidebar-search">
         <div id="quarto-search" class="" title="Search"></div>
@@ -636,7 +647,12 @@ pre > code.sourceCode > span > a:first-child::before { text-decoration: underlin
 </figure>
 </div>
 <p>在 Beam Search 的场景下，则会管理一个树状结构，在最新时刻的解码结果出现后，可以将废弃的 Block 进行剪枝回收。如下图示例，Beam width 为4，虚线左侧是 <span class="math inline">\(t-1\)</span> 时刻的 KV Cache 占用情况，当 <span class="math inline">\(t\)</span> 时刻解码完成后，最新的 Block9~12 依赖的 KV Cache 全部来自 Block6 和 Block7，则 Block2、4、5、8 的显存将被回收。</p>
-<p>../attachments <img src="../attachments/fc7f0992.png" class="img-fluid" style="width:60.0%" alt="fc7f0992.png"></p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../attachments/fc7f0992.png" class="img-fluid figure-img" style="width:60.0%"></p>
+<figcaption class="figure-caption">fc7f0992.png</figcaption>
+</figure>
+</div>
 <p>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the <strong>earliest</strong> arrived requests are <strong>served first</strong> and the <strong>latest</strong> requests are <strong>preempted first</strong>。具体实现方式有:</p>
 <ul>
 <li>Swapping: latest requests 占用的 Block 将会被放入 CPU RAM，等待前方解码完成释放空间后，再从 CPU RAM 中重新取回显存。</li>
@@ -1551,265 +1567,264 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
 <span id="cb8-335"><a href="#cb8-335" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-336"><a href="#cb8-336" aria-hidden="true" tabindex="-1"></a>在 Beam Search 的场景下，则会管理一个树状结构，在最新时刻的解码结果出现后，可以将废弃的 Block 进行剪枝回收。如下图示例，Beam width 为4，虚线左侧是 $t-1$ 时刻的 KV Cache 占用情况，当 $t$ 时刻解码完成后，最新的 Block9~12 依赖的 KV Cache 全部来自 Block6 和 Block7，则 Block2、4、5、8 的显存将被回收。</span>
 <span id="cb8-337"><a href="#cb8-337" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-338"><a href="#cb8-338" aria-hidden="true" tabindex="-1"></a>../attachments</span>
-<span id="cb8-339"><a href="#cb8-339" aria-hidden="true" tabindex="-1"></a><span class="al">![fc7f0992.png](../attachments/fc7f0992.png)</span>{width=60%}</span>
-<span id="cb8-340"><a href="#cb8-340" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-341"><a href="#cb8-341" aria-hidden="true" tabindex="-1"></a>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the **earliest** arrived requests are **served first** and the **latest** requests are **preempted first**。具体实现方式有:</span>
-<span id="cb8-342"><a href="#cb8-342" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-343"><a href="#cb8-343" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Swapping: latest requests 占用的 Block 将会被放入 CPU RAM，等待前方解码完成释放空间后，再从 CPU RAM 中重新取回显存。</span>
-<span id="cb8-344"><a href="#cb8-344" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Recomputation: 直接释放 latest requests 占用的 Block，后续将重新计算得到 KV Cache（在这里重新计算是很快的，因为我们已知当前所有的 token，直接用 Masked Attention并行计算）。</span>
-<span id="cb8-345"><a href="#cb8-345" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-346"><a href="#cb8-346" aria-hidden="true" tabindex="-1"></a>---</span>
-<span id="cb8-347"><a href="#cb8-347" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-348"><a href="#cb8-348" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. 抛砖引玉</span></span>
-<span id="cb8-349"><a href="#cb8-349" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-350"><a href="#cb8-350" aria-hidden="true" tabindex="-1"></a>此次分享专注的是 Transformer 在计算和推理上结构优化，该类方法主要通过优化 Transformer 的结构以实现推理性能的提升。</span>
-<span id="cb8-351"><a href="#cb8-351" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-352"><a href="#cb8-352" aria-hidden="true" tabindex="-1"></a>当前 LLM 加速技术是热门的研究方向，目前包括但不限于以下几点(<span class="co">[</span><span class="ot">NLP（十八）：LLM 的推理优化技术纵览</span><span class="co">](https://zhuanlan.zhihu.com/p/642412124)</span>)：</span>
-<span id="cb8-353"><a href="#cb8-353" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-354"><a href="#cb8-354" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>子图融合（subgraph fusion）</span>
-<span id="cb8-355"><a href="#cb8-355" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>模型压缩（Model Compression）</span>
-<span id="cb8-356"><a href="#cb8-356" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>并行化（Parallelism）</span>
-<span id="cb8-357"><a href="#cb8-357" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Transformer 结构优化</span>
-<span id="cb8-358"><a href="#cb8-358" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>动态批处理（Dynamic Batch, Continuous batch）</span>
-<span id="cb8-359"><a href="#cb8-359" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>KV cache 优化</span>
-<span id="cb8-360"><a href="#cb8-360" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>投机采样与MoE</span>
-<span id="cb8-361"><a href="#cb8-361" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-362"><a href="#cb8-362" aria-hidden="true" tabindex="-1"></a>**一起学习、讨论和进步。**</span>
-<span id="cb8-363"><a href="#cb8-363" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-364"><a href="#cb8-364" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. 附录：测试脚本</span></span>
-<span id="cb8-365"><a href="#cb8-365" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-366"><a href="#cb8-366" aria-hidden="true" tabindex="-1"></a>附上2个完整的可执行脚本，有兴趣的可以运行并查看对比结果。</span>
-<span id="cb8-367"><a href="#cb8-367" aria-hidden="true" tabindex="-1"></a>由于只展示理论的计算流程，在CPU单线程上做的模拟计算，实际没有任何的加速。</span>
-<span id="cb8-368"><a href="#cb8-368" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-369"><a href="#cb8-369" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.1 online_softmax.py</span></span>
-<span id="cb8-370"><a href="#cb8-370" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-373"><a href="#cb8-373" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb8-374"><a href="#cb8-374" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
-<span id="cb8-375"><a href="#cb8-375" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb8-338"><a href="#cb8-338" aria-hidden="true" tabindex="-1"></a><span class="al">![fc7f0992.png](../attachments/fc7f0992.png)</span>{width=60%}</span>
+<span id="cb8-339"><a href="#cb8-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-340"><a href="#cb8-340" aria-hidden="true" tabindex="-1"></a>除此之外，在大批量多序列推理的过程中，因为显存的动态分配，在某个时刻有可能会有显存不足的情况，为了防止此类情况，PagedAttention 实现了内存抢占机制，核心思想是 the **earliest** arrived requests are **served first** and the **latest** requests are **preempted first**。具体实现方式有:</span>
+<span id="cb8-341"><a href="#cb8-341" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-342"><a href="#cb8-342" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Swapping: latest requests 占用的 Block 将会被放入 CPU RAM，等待前方解码完成释放空间后，再从 CPU RAM 中重新取回显存。</span>
+<span id="cb8-343"><a href="#cb8-343" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Recomputation: 直接释放 latest requests 占用的 Block，后续将重新计算得到 KV Cache（在这里重新计算是很快的，因为我们已知当前所有的 token，直接用 Masked Attention并行计算）。</span>
+<span id="cb8-344"><a href="#cb8-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-345"><a href="#cb8-345" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb8-346"><a href="#cb8-346" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-347"><a href="#cb8-347" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. 抛砖引玉</span></span>
+<span id="cb8-348"><a href="#cb8-348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-349"><a href="#cb8-349" aria-hidden="true" tabindex="-1"></a>此次分享专注的是 Transformer 在计算和推理上结构优化，该类方法主要通过优化 Transformer 的结构以实现推理性能的提升。</span>
+<span id="cb8-350"><a href="#cb8-350" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-351"><a href="#cb8-351" aria-hidden="true" tabindex="-1"></a>当前 LLM 加速技术是热门的研究方向，目前包括但不限于以下几点(<span class="co">[</span><span class="ot">NLP（十八）：LLM 的推理优化技术纵览</span><span class="co">](https://zhuanlan.zhihu.com/p/642412124)</span>)：</span>
+<span id="cb8-352"><a href="#cb8-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-353"><a href="#cb8-353" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>子图融合（subgraph fusion）</span>
+<span id="cb8-354"><a href="#cb8-354" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>模型压缩（Model Compression）</span>
+<span id="cb8-355"><a href="#cb8-355" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>并行化（Parallelism）</span>
+<span id="cb8-356"><a href="#cb8-356" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Transformer 结构优化</span>
+<span id="cb8-357"><a href="#cb8-357" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>动态批处理（Dynamic Batch, Continuous batch）</span>
+<span id="cb8-358"><a href="#cb8-358" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>KV cache 优化</span>
+<span id="cb8-359"><a href="#cb8-359" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>投机采样与MoE</span>
+<span id="cb8-360"><a href="#cb8-360" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-361"><a href="#cb8-361" aria-hidden="true" tabindex="-1"></a>**一起学习、讨论和进步。**</span>
+<span id="cb8-362"><a href="#cb8-362" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-363"><a href="#cb8-363" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. 附录：测试脚本</span></span>
+<span id="cb8-364"><a href="#cb8-364" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-365"><a href="#cb8-365" aria-hidden="true" tabindex="-1"></a>附上2个完整的可执行脚本，有兴趣的可以运行并查看对比结果。</span>
+<span id="cb8-366"><a href="#cb8-366" aria-hidden="true" tabindex="-1"></a>由于只展示理论的计算流程，在CPU单线程上做的模拟计算，实际没有任何的加速。</span>
+<span id="cb8-367"><a href="#cb8-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-368"><a href="#cb8-368" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.1 online_softmax.py</span></span>
+<span id="cb8-369"><a href="#cb8-369" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-372"><a href="#cb8-372" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-373"><a href="#cb8-373" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
+<span id="cb8-374"><a href="#cb8-374" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb8-375"><a href="#cb8-375" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-376"><a href="#cb8-376" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-377"><a href="#cb8-377" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-378"><a href="#cb8-378" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> safe_softmax(x: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb8-379"><a href="#cb8-379" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.<span class="bu">max</span>(x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb8-380"><a href="#cb8-380" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.expand_dims(m, <span class="dv">1</span>)</span>
-<span id="cb8-381"><a href="#cb8-381" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.<span class="bu">sum</span>(np.exp(x <span class="op">-</span> m), axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb8-382"><a href="#cb8-382" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.expand_dims(d, <span class="dv">1</span>)</span>
-<span id="cb8-383"><a href="#cb8-383" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.exp(x <span class="op">-</span> m) <span class="op">/</span> d</span>
-<span id="cb8-384"><a href="#cb8-384" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-385"><a href="#cb8-385" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> y</span>
+<span id="cb8-377"><a href="#cb8-377" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> safe_softmax(x: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-378"><a href="#cb8-378" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.<span class="bu">max</span>(x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-379"><a href="#cb8-379" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.expand_dims(m, <span class="dv">1</span>)</span>
+<span id="cb8-380"><a href="#cb8-380" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.<span class="bu">sum</span>(np.exp(x <span class="op">-</span> m), axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-381"><a href="#cb8-381" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb8-382"><a href="#cb8-382" aria-hidden="true" tabindex="-1"></a>    y <span class="op">=</span> np.exp(x <span class="op">-</span> m) <span class="op">/</span> d</span>
+<span id="cb8-383"><a href="#cb8-383" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-384"><a href="#cb8-384" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> y</span>
+<span id="cb8-385"><a href="#cb8-385" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-386"><a href="#cb8-386" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-387"><a href="#cb8-387" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-388"><a href="#cb8-388" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> online_softmax(x: np.ndarray, chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb8-389"><a href="#cb8-389" aria-hidden="true" tabindex="-1"></a>    num_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(x.shape[<span class="dv">1</span>] <span class="op">/</span> chunk_size))</span>
-<span id="cb8-390"><a href="#cb8-390" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
-<span id="cb8-391"><a href="#cb8-391" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
-<span id="cb8-392"><a href="#cb8-392" aria-hidden="true" tabindex="-1"></a>    softmax <span class="op">=</span> np.zeros_like(x)</span>
-<span id="cb8-393"><a href="#cb8-393" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-394"><a href="#cb8-394" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_steps):</span>
-<span id="cb8-395"><a href="#cb8-395" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get chunk data</span></span>
-<span id="cb8-396"><a href="#cb8-396" aria-hidden="true" tabindex="-1"></a>        chunk_x <span class="op">=</span> x[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size]</span>
-<span id="cb8-397"><a href="#cb8-397" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-398"><a href="#cb8-398" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 1. Perform local softmax on chunk data.</span></span>
-<span id="cb8-399"><a href="#cb8-399" aria-hidden="true" tabindex="-1"></a>        chunk_m <span class="op">=</span> np.<span class="bu">max</span>(chunk_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb8-400"><a href="#cb8-400" aria-hidden="true" tabindex="-1"></a>        chunk_f <span class="op">=</span> np.exp(chunk_x <span class="op">-</span> np.expand_dims(chunk_m, <span class="dv">1</span>))</span>
-<span id="cb8-401"><a href="#cb8-401" aria-hidden="true" tabindex="-1"></a>        chunk_d <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb8-402"><a href="#cb8-402" aria-hidden="true" tabindex="-1"></a>        chunk_softmax <span class="op">=</span> chunk_f <span class="op">/</span> np.expand_dims(chunk_d, <span class="dv">1</span>)</span>
-<span id="cb8-403"><a href="#cb8-403" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-404"><a href="#cb8-404" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 2. Get new m_x and l_x.</span></span>
-<span id="cb8-405"><a href="#cb8-405" aria-hidden="true" tabindex="-1"></a>        m_new <span class="op">=</span> np.maximum(m, chunk_m)</span>
-<span id="cb8-406"><a href="#cb8-406" aria-hidden="true" tabindex="-1"></a>        d_new <span class="op">=</span> d <span class="op">*</span> np.exp(m <span class="op">-</span> m_new) <span class="op">+</span> chunk_d <span class="op">*</span> np.exp(chunk_m <span class="op">-</span> m_new)</span>
-<span id="cb8-407"><a href="#cb8-407" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-408"><a href="#cb8-408" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 3. Rescale(OLD + NEW) and concat(NEW) softmax values.</span></span>
-<span id="cb8-409"><a href="#cb8-409" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale</span></span>
-<span id="cb8-410"><a href="#cb8-410" aria-hidden="true" tabindex="-1"></a>        softmax <span class="op">=</span> (</span>
-<span id="cb8-411"><a href="#cb8-411" aria-hidden="true" tabindex="-1"></a>            softmax</span>
-<span id="cb8-412"><a href="#cb8-412" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(d, <span class="dv">1</span>)</span>
-<span id="cb8-413"><a href="#cb8-413" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
-<span id="cb8-414"><a href="#cb8-414" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="dv">1</span>)</span>
-<span id="cb8-415"><a href="#cb8-415" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb8-416"><a href="#cb8-416" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale and concat</span></span>
-<span id="cb8-417"><a href="#cb8-417" aria-hidden="true" tabindex="-1"></a>        softmax[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size] <span class="op">=</span> (</span>
-<span id="cb8-418"><a href="#cb8-418" aria-hidden="true" tabindex="-1"></a>            chunk_softmax</span>
-<span id="cb8-419"><a href="#cb8-419" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(chunk_d, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb8-420"><a href="#cb8-420" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(chunk_m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
-<span id="cb8-421"><a href="#cb8-421" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb8-422"><a href="#cb8-422" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb8-423"><a href="#cb8-423" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-424"><a href="#cb8-424" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 4. Update m_x and l_x from CURRENT global info.</span></span>
-<span id="cb8-425"><a href="#cb8-425" aria-hidden="true" tabindex="-1"></a>        m <span class="op">=</span> m_new</span>
-<span id="cb8-426"><a href="#cb8-426" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d_new</span>
-<span id="cb8-427"><a href="#cb8-427" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-428"><a href="#cb8-428" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> softmax</span>
+<span id="cb8-387"><a href="#cb8-387" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> online_softmax(x: np.ndarray, chunk_size: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-388"><a href="#cb8-388" aria-hidden="true" tabindex="-1"></a>    num_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(x.shape[<span class="dv">1</span>] <span class="op">/</span> chunk_size))</span>
+<span id="cb8-389"><a href="#cb8-389" aria-hidden="true" tabindex="-1"></a>    m <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb8-390"><a href="#cb8-390" aria-hidden="true" tabindex="-1"></a>    d <span class="op">=</span> np.zeros((x.shape[<span class="dv">0</span>]))</span>
+<span id="cb8-391"><a href="#cb8-391" aria-hidden="true" tabindex="-1"></a>    softmax <span class="op">=</span> np.zeros_like(x)</span>
+<span id="cb8-392"><a href="#cb8-392" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-393"><a href="#cb8-393" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(num_steps):</span>
+<span id="cb8-394"><a href="#cb8-394" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Get chunk data</span></span>
+<span id="cb8-395"><a href="#cb8-395" aria-hidden="true" tabindex="-1"></a>        chunk_x <span class="op">=</span> x[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size]</span>
+<span id="cb8-396"><a href="#cb8-396" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-397"><a href="#cb8-397" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 1. Perform local softmax on chunk data.</span></span>
+<span id="cb8-398"><a href="#cb8-398" aria-hidden="true" tabindex="-1"></a>        chunk_m <span class="op">=</span> np.<span class="bu">max</span>(chunk_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-399"><a href="#cb8-399" aria-hidden="true" tabindex="-1"></a>        chunk_f <span class="op">=</span> np.exp(chunk_x <span class="op">-</span> np.expand_dims(chunk_m, <span class="dv">1</span>))</span>
+<span id="cb8-400"><a href="#cb8-400" aria-hidden="true" tabindex="-1"></a>        chunk_d <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-401"><a href="#cb8-401" aria-hidden="true" tabindex="-1"></a>        chunk_softmax <span class="op">=</span> chunk_f <span class="op">/</span> np.expand_dims(chunk_d, <span class="dv">1</span>)</span>
+<span id="cb8-402"><a href="#cb8-402" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-403"><a href="#cb8-403" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 2. Get new m_x and l_x.</span></span>
+<span id="cb8-404"><a href="#cb8-404" aria-hidden="true" tabindex="-1"></a>        m_new <span class="op">=</span> np.maximum(m, chunk_m)</span>
+<span id="cb8-405"><a href="#cb8-405" aria-hidden="true" tabindex="-1"></a>        d_new <span class="op">=</span> d <span class="op">*</span> np.exp(m <span class="op">-</span> m_new) <span class="op">+</span> chunk_d <span class="op">*</span> np.exp(chunk_m <span class="op">-</span> m_new)</span>
+<span id="cb8-406"><a href="#cb8-406" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-407"><a href="#cb8-407" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 3. Rescale(OLD + NEW) and concat(NEW) softmax values.</span></span>
+<span id="cb8-408"><a href="#cb8-408" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale</span></span>
+<span id="cb8-409"><a href="#cb8-409" aria-hidden="true" tabindex="-1"></a>        softmax <span class="op">=</span> (</span>
+<span id="cb8-410"><a href="#cb8-410" aria-hidden="true" tabindex="-1"></a>            softmax</span>
+<span id="cb8-411"><a href="#cb8-411" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(d, <span class="dv">1</span>)</span>
+<span id="cb8-412"><a href="#cb8-412" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb8-413"><a href="#cb8-413" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="dv">1</span>)</span>
+<span id="cb8-414"><a href="#cb8-414" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-415"><a href="#cb8-415" aria-hidden="true" tabindex="-1"></a>        <span class="co"># Rescale and concat</span></span>
+<span id="cb8-416"><a href="#cb8-416" aria-hidden="true" tabindex="-1"></a>        softmax[:, i <span class="op">*</span> chunk_size : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> chunk_size] <span class="op">=</span> (</span>
+<span id="cb8-417"><a href="#cb8-417" aria-hidden="true" tabindex="-1"></a>            chunk_softmax</span>
+<span id="cb8-418"><a href="#cb8-418" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(chunk_d, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-419"><a href="#cb8-419" aria-hidden="true" tabindex="-1"></a>            <span class="op">*</span> np.expand_dims(np.exp(chunk_m <span class="op">-</span> m_new), <span class="dv">1</span>)</span>
+<span id="cb8-420"><a href="#cb8-420" aria-hidden="true" tabindex="-1"></a>            <span class="op">/</span> np.expand_dims(d_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-421"><a href="#cb8-421" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-422"><a href="#cb8-422" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-423"><a href="#cb8-423" aria-hidden="true" tabindex="-1"></a>        <span class="co"># INFO: 4. Update m_x and l_x from CURRENT global info.</span></span>
+<span id="cb8-424"><a href="#cb8-424" aria-hidden="true" tabindex="-1"></a>        m <span class="op">=</span> m_new</span>
+<span id="cb8-425"><a href="#cb8-425" aria-hidden="true" tabindex="-1"></a>        d <span class="op">=</span> d_new</span>
+<span id="cb8-426"><a href="#cb8-426" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-427"><a href="#cb8-427" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> softmax</span>
+<span id="cb8-428"><a href="#cb8-428" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-429"><a href="#cb8-429" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-430"><a href="#cb8-430" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-431"><a href="#cb8-431" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_online_softmax():</span>
-<span id="cb8-432"><a href="#cb8-432" aria-hidden="true" tabindex="-1"></a>    BATCH_SIZE <span class="op">=</span> <span class="dv">2</span></span>
-<span id="cb8-433"><a href="#cb8-433" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">4</span></span>
-<span id="cb8-434"><a href="#cb8-434" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-435"><a href="#cb8-435" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
-<span id="cb8-436"><a href="#cb8-436" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((BATCH_SIZE, SEQ_LENGTH))</span>
-<span id="cb8-437"><a href="#cb8-437" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-438"><a href="#cb8-438" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-439"><a href="#cb8-439" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(x)</span>
-<span id="cb8-440"><a href="#cb8-440" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-441"><a href="#cb8-441" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Safe Softmax</span></span>
-<span id="cb8-442"><a href="#cb8-442" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"safe_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-443"><a href="#cb8-443" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> safe_softmax(x)</span>
-<span id="cb8-444"><a href="#cb8-444" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y1)</span>
-<span id="cb8-445"><a href="#cb8-445" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-446"><a href="#cb8-446" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Online Softmax</span></span>
-<span id="cb8-447"><a href="#cb8-447" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"online_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-448"><a href="#cb8-448" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> online_softmax(x)</span>
-<span id="cb8-449"><a href="#cb8-449" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y2)</span>
-<span id="cb8-450"><a href="#cb8-450" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-451"><a href="#cb8-451" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
-<span id="cb8-452"><a href="#cb8-452" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-453"><a href="#cb8-453" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(np.allclose(y1, y2))</span>
+<span id="cb8-430"><a href="#cb8-430" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_online_softmax():</span>
+<span id="cb8-431"><a href="#cb8-431" aria-hidden="true" tabindex="-1"></a>    BATCH_SIZE <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb8-432"><a href="#cb8-432" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">4</span></span>
+<span id="cb8-433"><a href="#cb8-433" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-434"><a href="#cb8-434" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb8-435"><a href="#cb8-435" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((BATCH_SIZE, SEQ_LENGTH))</span>
+<span id="cb8-436"><a href="#cb8-436" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-437"><a href="#cb8-437" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-438"><a href="#cb8-438" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(x)</span>
+<span id="cb8-439"><a href="#cb8-439" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-440"><a href="#cb8-440" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Safe Softmax</span></span>
+<span id="cb8-441"><a href="#cb8-441" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"safe_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-442"><a href="#cb8-442" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> safe_softmax(x)</span>
+<span id="cb8-443"><a href="#cb8-443" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y1)</span>
+<span id="cb8-444"><a href="#cb8-444" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-445"><a href="#cb8-445" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Online Softmax</span></span>
+<span id="cb8-446"><a href="#cb8-446" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"online_softmax"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-447"><a href="#cb8-447" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> online_softmax(x)</span>
+<span id="cb8-448"><a href="#cb8-448" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(y2)</span>
+<span id="cb8-449"><a href="#cb8-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-450"><a href="#cb8-450" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
+<span id="cb8-451"><a href="#cb8-451" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-452"><a href="#cb8-452" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(np.allclose(y1, y2))</span>
+<span id="cb8-453"><a href="#cb8-453" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-454"><a href="#cb8-454" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-455"><a href="#cb8-455" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-456"><a href="#cb8-456" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
-<span id="cb8-457"><a href="#cb8-457" aria-hidden="true" tabindex="-1"></a>    test_online_softmax()</span>
+<span id="cb8-455"><a href="#cb8-455" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb8-456"><a href="#cb8-456" aria-hidden="true" tabindex="-1"></a>    test_online_softmax()</span>
+<span id="cb8-457"><a href="#cb8-457" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-458"><a href="#cb8-458" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-459"><a href="#cb8-459" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-460"><a href="#cb8-460" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
-<span id="cb8-461"><a href="#cb8-461" aria-hidden="true" tabindex="-1"></a>    main()</span>
-<span id="cb8-462"><a href="#cb8-462" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-463"><a href="#cb8-463" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-459"><a href="#cb8-459" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb8-460"><a href="#cb8-460" aria-hidden="true" tabindex="-1"></a>    main()</span>
+<span id="cb8-461"><a href="#cb8-461" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-462"><a href="#cb8-462" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-463"><a href="#cb8-463" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-464"><a href="#cb8-464" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-465"><a href="#cb8-465" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-466"><a href="#cb8-466" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.2 flash_attention.py</span></span>
-<span id="cb8-467"><a href="#cb8-467" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-470"><a href="#cb8-470" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
-<span id="cb8-471"><a href="#cb8-471" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
-<span id="cb8-472"><a href="#cb8-472" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
-<span id="cb8-473"><a href="#cb8-473" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
-<span id="cb8-474"><a href="#cb8-474" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.nn.functional <span class="im">import</span> scaled_dot_product_attention</span>
-<span id="cb8-475"><a href="#cb8-475" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-476"><a href="#cb8-476" aria-hidden="true" tabindex="-1"></a><span class="co"># from online_softmax import safe_softmax</span></span>
+<span id="cb8-465"><a href="#cb8-465" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6.2 flash_attention.py</span></span>
+<span id="cb8-466"><a href="#cb8-466" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-469"><a href="#cb8-469" aria-hidden="true" tabindex="-1"></a><span class="in">```{python}</span></span>
+<span id="cb8-470"><a href="#cb8-470" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> ipdb</span>
+<span id="cb8-471"><a href="#cb8-471" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> numpy <span class="im">as</span> np</span>
+<span id="cb8-472"><a href="#cb8-472" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb8-473"><a href="#cb8-473" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.nn.functional <span class="im">import</span> scaled_dot_product_attention</span>
+<span id="cb8-474"><a href="#cb8-474" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-475"><a href="#cb8-475" aria-hidden="true" tabindex="-1"></a><span class="co"># from online_softmax import safe_softmax</span></span>
+<span id="cb8-476"><a href="#cb8-476" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-477"><a href="#cb8-477" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-478"><a href="#cb8-478" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-479"><a href="#cb8-479" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention_from_torch(</span>
-<span id="cb8-480"><a href="#cb8-480" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray</span>
-<span id="cb8-481"><a href="#cb8-481" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb8-482"><a href="#cb8-482" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> (</span>
-<span id="cb8-483"><a href="#cb8-483" aria-hidden="true" tabindex="-1"></a>        scaled_dot_product_attention(</span>
-<span id="cb8-484"><a href="#cb8-484" aria-hidden="true" tabindex="-1"></a>            torch.from_numpy(Q), torch.from_numpy(K), torch.from_numpy(V), scale<span class="op">=</span><span class="fl">1.0</span></span>
-<span id="cb8-485"><a href="#cb8-485" aria-hidden="true" tabindex="-1"></a>        )</span>
-<span id="cb8-486"><a href="#cb8-486" aria-hidden="true" tabindex="-1"></a>        .cpu()</span>
-<span id="cb8-487"><a href="#cb8-487" aria-hidden="true" tabindex="-1"></a>        .numpy()</span>
-<span id="cb8-488"><a href="#cb8-488" aria-hidden="true" tabindex="-1"></a>    )</span>
-<span id="cb8-489"><a href="#cb8-489" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-478"><a href="#cb8-478" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention_from_torch(</span>
+<span id="cb8-479"><a href="#cb8-479" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray</span>
+<span id="cb8-480"><a href="#cb8-480" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-481"><a href="#cb8-481" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> (</span>
+<span id="cb8-482"><a href="#cb8-482" aria-hidden="true" tabindex="-1"></a>        scaled_dot_product_attention(</span>
+<span id="cb8-483"><a href="#cb8-483" aria-hidden="true" tabindex="-1"></a>            torch.from_numpy(Q), torch.from_numpy(K), torch.from_numpy(V), scale<span class="op">=</span><span class="fl">1.0</span></span>
+<span id="cb8-484"><a href="#cb8-484" aria-hidden="true" tabindex="-1"></a>        )</span>
+<span id="cb8-485"><a href="#cb8-485" aria-hidden="true" tabindex="-1"></a>        .cpu()</span>
+<span id="cb8-486"><a href="#cb8-486" aria-hidden="true" tabindex="-1"></a>        .numpy()</span>
+<span id="cb8-487"><a href="#cb8-487" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-488"><a href="#cb8-488" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-489"><a href="#cb8-489" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-490"><a href="#cb8-490" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-491"><a href="#cb8-491" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-492"><a href="#cb8-492" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb8-493"><a href="#cb8-493" aria-hidden="true" tabindex="-1"></a>    S <span class="op">=</span> np.matmul(Q, K.T)  <span class="co"># Dot-Product Attention</span></span>
-<span id="cb8-494"><a href="#cb8-494" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> safe_softmax(S)  <span class="co"># (N, N)</span></span>
-<span id="cb8-495"><a href="#cb8-495" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.matmul(P, V)  <span class="co"># (N, d)</span></span>
-<span id="cb8-496"><a href="#cb8-496" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-497"><a href="#cb8-497" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-491"><a href="#cb8-491" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> self_attention(Q: np.ndarray, K: np.ndarray, V: np.ndarray) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-492"><a href="#cb8-492" aria-hidden="true" tabindex="-1"></a>    S <span class="op">=</span> np.matmul(Q, K.T)  <span class="co"># Dot-Product Attention</span></span>
+<span id="cb8-493"><a href="#cb8-493" aria-hidden="true" tabindex="-1"></a>    P <span class="op">=</span> safe_softmax(S)  <span class="co"># (N, N)</span></span>
+<span id="cb8-494"><a href="#cb8-494" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.matmul(P, V)  <span class="co"># (N, d)</span></span>
+<span id="cb8-495"><a href="#cb8-495" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-496"><a href="#cb8-496" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-497"><a href="#cb8-497" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-498"><a href="#cb8-498" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-499"><a href="#cb8-499" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-500"><a href="#cb8-500" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flash_attention(</span>
-<span id="cb8-501"><a href="#cb8-501" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray, Br: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>, Bc: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span></span>
-<span id="cb8-502"><a href="#cb8-502" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
-<span id="cb8-503"><a href="#cb8-503" aria-hidden="true" tabindex="-1"></a>    N, d <span class="op">=</span> Q.shape</span>
-<span id="cb8-504"><a href="#cb8-504" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.zeros_like(Q)  <span class="co"># Alloc memory for `O` in HBM</span></span>
-<span id="cb8-505"><a href="#cb8-505" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-506"><a href="#cb8-506" aria-hidden="true" tabindex="-1"></a>    outer_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Bc))</span>
-<span id="cb8-507"><a href="#cb8-507" aria-hidden="true" tabindex="-1"></a>    inner_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Br))</span>
-<span id="cb8-508"><a href="#cb8-508" aria-hidden="true" tabindex="-1"></a>    m_x_all <span class="op">=</span> np.zeros((N))</span>
-<span id="cb8-509"><a href="#cb8-509" aria-hidden="true" tabindex="-1"></a>    l_x_all <span class="op">=</span> np.zeros((N))</span>
-<span id="cb8-510"><a href="#cb8-510" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-511"><a href="#cb8-511" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(outer_loop_steps):</span>
-<span id="cb8-512"><a href="#cb8-512" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(inner_loop_steps):</span>
-<span id="cb8-513"><a href="#cb8-513" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Get chunk data</span></span>
-<span id="cb8-514"><a href="#cb8-514" aria-hidden="true" tabindex="-1"></a>            chunk_q <span class="op">=</span> Q[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]  <span class="co"># (Br, d)</span></span>
-<span id="cb8-515"><a href="#cb8-515" aria-hidden="true" tabindex="-1"></a>            chunk_k <span class="op">=</span> K[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
-<span id="cb8-516"><a href="#cb8-516" aria-hidden="true" tabindex="-1"></a>            chunk_v <span class="op">=</span> V[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
-<span id="cb8-517"><a href="#cb8-517" aria-hidden="true" tabindex="-1"></a>            m_x <span class="op">=</span> m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
-<span id="cb8-518"><a href="#cb8-518" aria-hidden="true" tabindex="-1"></a>            l_x <span class="op">=</span> l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
-<span id="cb8-519"><a href="#cb8-519" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-520"><a href="#cb8-520" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 1. Perform attention on block data.</span></span>
-<span id="cb8-521"><a href="#cb8-521" aria-hidden="true" tabindex="-1"></a>            chunk_s <span class="op">=</span> np.matmul(chunk_q, chunk_k.T)  <span class="co"># (Br, Bc)</span></span>
-<span id="cb8-522"><a href="#cb8-522" aria-hidden="true" tabindex="-1"></a>            chunk_m_x <span class="op">=</span> np.<span class="bu">max</span>(chunk_s, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb8-523"><a href="#cb8-523" aria-hidden="true" tabindex="-1"></a>            chunk_f_x <span class="op">=</span> np.exp(chunk_s <span class="op">-</span> np.expand_dims(chunk_m_x, <span class="dv">1</span>))</span>
-<span id="cb8-524"><a href="#cb8-524" aria-hidden="true" tabindex="-1"></a>            chunk_l_x <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
-<span id="cb8-525"><a href="#cb8-525" aria-hidden="true" tabindex="-1"></a>            chunk_p <span class="op">=</span> chunk_f_x <span class="op">/</span> np.expand_dims(chunk_l_x, <span class="dv">1</span>)</span>
-<span id="cb8-526"><a href="#cb8-526" aria-hidden="true" tabindex="-1"></a>            chunk_o <span class="op">=</span> np.matmul(chunk_p, chunk_v)</span>
-<span id="cb8-527"><a href="#cb8-527" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-528"><a href="#cb8-528" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 2. Update `GLOBAL` stats.</span></span>
-<span id="cb8-529"><a href="#cb8-529" aria-hidden="true" tabindex="-1"></a>            m_x_new <span class="op">=</span> np.maximum(m_x, chunk_m_x)</span>
-<span id="cb8-530"><a href="#cb8-530" aria-hidden="true" tabindex="-1"></a>            l_x_new <span class="op">=</span> l_x <span class="op">*</span> np.exp(m_x <span class="op">-</span> m_x_new) <span class="op">+</span> chunk_l_x <span class="op">*</span> np.exp(</span>
-<span id="cb8-531"><a href="#cb8-531" aria-hidden="true" tabindex="-1"></a>                chunk_m_x <span class="op">-</span> m_x_new</span>
-<span id="cb8-532"><a href="#cb8-532" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb8-533"><a href="#cb8-533" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-534"><a href="#cb8-534" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 3. Rescale and update `GLOBAL` output.</span></span>
-<span id="cb8-535"><a href="#cb8-535" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Rescale(Old)</span></span>
-<span id="cb8-536"><a href="#cb8-536" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> (</span>
-<span id="cb8-537"><a href="#cb8-537" aria-hidden="true" tabindex="-1"></a>                O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
-<span id="cb8-538"><a href="#cb8-538" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(l_x, <span class="dv">1</span>)</span>
-<span id="cb8-539"><a href="#cb8-539" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
-<span id="cb8-540"><a href="#cb8-540" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="dv">1</span>)</span>
-<span id="cb8-541"><a href="#cb8-541" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb8-542"><a href="#cb8-542" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Update(New)</span></span>
-<span id="cb8-543"><a href="#cb8-543" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">+=</span> (</span>
-<span id="cb8-544"><a href="#cb8-544" aria-hidden="true" tabindex="-1"></a>                chunk_o</span>
-<span id="cb8-545"><a href="#cb8-545" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(chunk_m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
-<span id="cb8-546"><a href="#cb8-546" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="op">-</span><span class="dv">1</span>)</span>
-<span id="cb8-547"><a href="#cb8-547" aria-hidden="true" tabindex="-1"></a>            )</span>
-<span id="cb8-548"><a href="#cb8-548" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-549"><a href="#cb8-549" aria-hidden="true" tabindex="-1"></a>            m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> m_x_new</span>
-<span id="cb8-550"><a href="#cb8-550" aria-hidden="true" tabindex="-1"></a>            l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> l_x_new</span>
-<span id="cb8-551"><a href="#cb8-551" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-552"><a href="#cb8-552" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-499"><a href="#cb8-499" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> flash_attention(</span>
+<span id="cb8-500"><a href="#cb8-500" aria-hidden="true" tabindex="-1"></a>    Q: np.ndarray, K: np.ndarray, V: np.ndarray, Br: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span>, Bc: <span class="bu">int</span> <span class="op">=</span> <span class="dv">2</span></span>
+<span id="cb8-501"><a href="#cb8-501" aria-hidden="true" tabindex="-1"></a>) <span class="op">-&gt;</span> np.ndarray:</span>
+<span id="cb8-502"><a href="#cb8-502" aria-hidden="true" tabindex="-1"></a>    N, d <span class="op">=</span> Q.shape</span>
+<span id="cb8-503"><a href="#cb8-503" aria-hidden="true" tabindex="-1"></a>    O <span class="op">=</span> np.zeros_like(Q)  <span class="co"># Alloc memory for `O` in HBM</span></span>
+<span id="cb8-504"><a href="#cb8-504" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-505"><a href="#cb8-505" aria-hidden="true" tabindex="-1"></a>    outer_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Bc))</span>
+<span id="cb8-506"><a href="#cb8-506" aria-hidden="true" tabindex="-1"></a>    inner_loop_steps <span class="op">=</span> <span class="bu">int</span>(np.ceil(N <span class="op">/</span> Br))</span>
+<span id="cb8-507"><a href="#cb8-507" aria-hidden="true" tabindex="-1"></a>    m_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb8-508"><a href="#cb8-508" aria-hidden="true" tabindex="-1"></a>    l_x_all <span class="op">=</span> np.zeros((N))</span>
+<span id="cb8-509"><a href="#cb8-509" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-510"><a href="#cb8-510" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> j <span class="kw">in</span> <span class="bu">range</span>(outer_loop_steps):</span>
+<span id="cb8-511"><a href="#cb8-511" aria-hidden="true" tabindex="-1"></a>        <span class="cf">for</span> i <span class="kw">in</span> <span class="bu">range</span>(inner_loop_steps):</span>
+<span id="cb8-512"><a href="#cb8-512" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Get chunk data</span></span>
+<span id="cb8-513"><a href="#cb8-513" aria-hidden="true" tabindex="-1"></a>            chunk_q <span class="op">=</span> Q[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]  <span class="co"># (Br, d)</span></span>
+<span id="cb8-514"><a href="#cb8-514" aria-hidden="true" tabindex="-1"></a>            chunk_k <span class="op">=</span> K[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb8-515"><a href="#cb8-515" aria-hidden="true" tabindex="-1"></a>            chunk_v <span class="op">=</span> V[j <span class="op">*</span> Bc : (j <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Bc]  <span class="co"># (Bc, d)</span></span>
+<span id="cb8-516"><a href="#cb8-516" aria-hidden="true" tabindex="-1"></a>            m_x <span class="op">=</span> m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-517"><a href="#cb8-517" aria-hidden="true" tabindex="-1"></a>            l_x <span class="op">=</span> l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-518"><a href="#cb8-518" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-519"><a href="#cb8-519" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 1. Perform attention on block data.</span></span>
+<span id="cb8-520"><a href="#cb8-520" aria-hidden="true" tabindex="-1"></a>            chunk_s <span class="op">=</span> np.matmul(chunk_q, chunk_k.T)  <span class="co"># (Br, Bc)</span></span>
+<span id="cb8-521"><a href="#cb8-521" aria-hidden="true" tabindex="-1"></a>            chunk_m_x <span class="op">=</span> np.<span class="bu">max</span>(chunk_s, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-522"><a href="#cb8-522" aria-hidden="true" tabindex="-1"></a>            chunk_f_x <span class="op">=</span> np.exp(chunk_s <span class="op">-</span> np.expand_dims(chunk_m_x, <span class="dv">1</span>))</span>
+<span id="cb8-523"><a href="#cb8-523" aria-hidden="true" tabindex="-1"></a>            chunk_l_x <span class="op">=</span> np.<span class="bu">sum</span>(chunk_f_x, axis<span class="op">=-</span><span class="dv">1</span>)</span>
+<span id="cb8-524"><a href="#cb8-524" aria-hidden="true" tabindex="-1"></a>            chunk_p <span class="op">=</span> chunk_f_x <span class="op">/</span> np.expand_dims(chunk_l_x, <span class="dv">1</span>)</span>
+<span id="cb8-525"><a href="#cb8-525" aria-hidden="true" tabindex="-1"></a>            chunk_o <span class="op">=</span> np.matmul(chunk_p, chunk_v)</span>
+<span id="cb8-526"><a href="#cb8-526" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-527"><a href="#cb8-527" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 2. Update `GLOBAL` stats.</span></span>
+<span id="cb8-528"><a href="#cb8-528" aria-hidden="true" tabindex="-1"></a>            m_x_new <span class="op">=</span> np.maximum(m_x, chunk_m_x)</span>
+<span id="cb8-529"><a href="#cb8-529" aria-hidden="true" tabindex="-1"></a>            l_x_new <span class="op">=</span> l_x <span class="op">*</span> np.exp(m_x <span class="op">-</span> m_x_new) <span class="op">+</span> chunk_l_x <span class="op">*</span> np.exp(</span>
+<span id="cb8-530"><a href="#cb8-530" aria-hidden="true" tabindex="-1"></a>                chunk_m_x <span class="op">-</span> m_x_new</span>
+<span id="cb8-531"><a href="#cb8-531" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-532"><a href="#cb8-532" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-533"><a href="#cb8-533" aria-hidden="true" tabindex="-1"></a>            <span class="co"># INFO: 3. Rescale and update `GLOBAL` output.</span></span>
+<span id="cb8-534"><a href="#cb8-534" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Rescale(Old)</span></span>
+<span id="cb8-535"><a href="#cb8-535" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> (</span>
+<span id="cb8-536"><a href="#cb8-536" aria-hidden="true" tabindex="-1"></a>                O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br]</span>
+<span id="cb8-537"><a href="#cb8-537" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(l_x, <span class="dv">1</span>)</span>
+<span id="cb8-538"><a href="#cb8-538" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb8-539"><a href="#cb8-539" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="dv">1</span>)</span>
+<span id="cb8-540"><a href="#cb8-540" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-541"><a href="#cb8-541" aria-hidden="true" tabindex="-1"></a>            <span class="co"># Update(New)</span></span>
+<span id="cb8-542"><a href="#cb8-542" aria-hidden="true" tabindex="-1"></a>            O[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">+=</span> (</span>
+<span id="cb8-543"><a href="#cb8-543" aria-hidden="true" tabindex="-1"></a>                chunk_o</span>
+<span id="cb8-544"><a href="#cb8-544" aria-hidden="true" tabindex="-1"></a>                <span class="op">*</span> np.expand_dims(np.exp(chunk_m_x <span class="op">-</span> m_x_new), <span class="dv">1</span>)</span>
+<span id="cb8-545"><a href="#cb8-545" aria-hidden="true" tabindex="-1"></a>                <span class="op">/</span> np.expand_dims(l_x_new, <span class="op">-</span><span class="dv">1</span>)</span>
+<span id="cb8-546"><a href="#cb8-546" aria-hidden="true" tabindex="-1"></a>            )</span>
+<span id="cb8-547"><a href="#cb8-547" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-548"><a href="#cb8-548" aria-hidden="true" tabindex="-1"></a>            m_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> m_x_new</span>
+<span id="cb8-549"><a href="#cb8-549" aria-hidden="true" tabindex="-1"></a>            l_x_all[i <span class="op">*</span> Br : (i <span class="op">+</span> <span class="dv">1</span>) <span class="op">*</span> Br] <span class="op">=</span> l_x_new</span>
+<span id="cb8-550"><a href="#cb8-550" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-551"><a href="#cb8-551" aria-hidden="true" tabindex="-1"></a>    <span class="cf">return</span> O</span>
+<span id="cb8-552"><a href="#cb8-552" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-553"><a href="#cb8-553" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-554"><a href="#cb8-554" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-555"><a href="#cb8-555" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_flash_attention():</span>
-<span id="cb8-556"><a href="#cb8-556" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">128</span></span>
-<span id="cb8-557"><a href="#cb8-557" aria-hidden="true" tabindex="-1"></a>    EMBEDDING_DIM <span class="op">=</span> <span class="dv">768</span></span>
-<span id="cb8-558"><a href="#cb8-558" aria-hidden="true" tabindex="-1"></a>    HIDDEN_DIM <span class="op">=</span> EMBEDDING_DIM</span>
-<span id="cb8-559"><a href="#cb8-559" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-560"><a href="#cb8-560" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
-<span id="cb8-561"><a href="#cb8-561" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((SEQ_LENGTH, EMBEDDING_DIM))</span>
-<span id="cb8-562"><a href="#cb8-562" aria-hidden="true" tabindex="-1"></a>    w_q <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
-<span id="cb8-563"><a href="#cb8-563" aria-hidden="true" tabindex="-1"></a>    w_k <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
-<span id="cb8-564"><a href="#cb8-564" aria-hidden="true" tabindex="-1"></a>    w_v <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
-<span id="cb8-565"><a href="#cb8-565" aria-hidden="true" tabindex="-1"></a>    Q, K, V <span class="op">=</span> [np.matmul(x, w) <span class="cf">for</span> w <span class="kw">in</span> [w_q, w_k, w_v]]</span>
-<span id="cb8-566"><a href="#cb8-566" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-567"><a href="#cb8-567" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input Shape"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-568"><a href="#cb8-568" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"x.shape: </span><span class="sc">{</span>x<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-569"><a href="#cb8-569" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_q.shape: </span><span class="sc">{</span>w_q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-570"><a href="#cb8-570" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_k.shape: </span><span class="sc">{</span>w_k<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-571"><a href="#cb8-571" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_v.shape: </span><span class="sc">{</span>w_v<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-572"><a href="#cb8-572" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Q.shape: </span><span class="sc">{</span>Q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-573"><a href="#cb8-573" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"K.shape: </span><span class="sc">{</span>K<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-574"><a href="#cb8-574" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"V.shape: </span><span class="sc">{</span>V<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-575"><a href="#cb8-575" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-576"><a href="#cb8-576" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Torch] Scale Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-577"><a href="#cb8-577" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> self_attention_from_torch(Q, K, V)</span>
-<span id="cb8-578"><a href="#cb8-578" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1.shape: </span><span class="sc">{</span>y1<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-579"><a href="#cb8-579" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-580"><a href="#cb8-580" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Vanilla Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-581"><a href="#cb8-581" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> self_attention(Q, K, V)</span>
-<span id="cb8-582"><a href="#cb8-582" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y2.shape: </span><span class="sc">{</span>y2<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-583"><a href="#cb8-583" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-584"><a href="#cb8-584" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Flash Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-585"><a href="#cb8-585" aria-hidden="true" tabindex="-1"></a>    y3 <span class="op">=</span> flash_attention(Q, K, V)</span>
-<span id="cb8-586"><a href="#cb8-586" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y3.shape: </span><span class="sc">{</span>y3<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-587"><a href="#cb8-587" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-588"><a href="#cb8-588" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
-<span id="cb8-589"><a href="#cb8-589" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
-<span id="cb8-590"><a href="#cb8-590" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y2: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y2)<span class="sc">}</span><span class="ss">"</span>)</span>
-<span id="cb8-591"><a href="#cb8-591" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y3: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y3)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-554"><a href="#cb8-554" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> test_flash_attention():</span>
+<span id="cb8-555"><a href="#cb8-555" aria-hidden="true" tabindex="-1"></a>    SEQ_LENGTH <span class="op">=</span> <span class="dv">128</span></span>
+<span id="cb8-556"><a href="#cb8-556" aria-hidden="true" tabindex="-1"></a>    EMBEDDING_DIM <span class="op">=</span> <span class="dv">768</span></span>
+<span id="cb8-557"><a href="#cb8-557" aria-hidden="true" tabindex="-1"></a>    HIDDEN_DIM <span class="op">=</span> EMBEDDING_DIM</span>
+<span id="cb8-558"><a href="#cb8-558" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-559"><a href="#cb8-559" aria-hidden="true" tabindex="-1"></a>    np.random.seed(<span class="dv">0</span>)</span>
+<span id="cb8-560"><a href="#cb8-560" aria-hidden="true" tabindex="-1"></a>    x <span class="op">=</span> np.random.random((SEQ_LENGTH, EMBEDDING_DIM))</span>
+<span id="cb8-561"><a href="#cb8-561" aria-hidden="true" tabindex="-1"></a>    w_q <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb8-562"><a href="#cb8-562" aria-hidden="true" tabindex="-1"></a>    w_k <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb8-563"><a href="#cb8-563" aria-hidden="true" tabindex="-1"></a>    w_v <span class="op">=</span> np.random.random((EMBEDDING_DIM, HIDDEN_DIM))</span>
+<span id="cb8-564"><a href="#cb8-564" aria-hidden="true" tabindex="-1"></a>    Q, K, V <span class="op">=</span> [np.matmul(x, w) <span class="cf">for</span> w <span class="kw">in</span> [w_q, w_k, w_v]]</span>
+<span id="cb8-565"><a href="#cb8-565" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-566"><a href="#cb8-566" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Input Shape"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-567"><a href="#cb8-567" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"x.shape: </span><span class="sc">{</span>x<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-568"><a href="#cb8-568" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_q.shape: </span><span class="sc">{</span>w_q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-569"><a href="#cb8-569" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_k.shape: </span><span class="sc">{</span>w_k<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-570"><a href="#cb8-570" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"w_v.shape: </span><span class="sc">{</span>w_v<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-571"><a href="#cb8-571" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"Q.shape: </span><span class="sc">{</span>Q<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-572"><a href="#cb8-572" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"K.shape: </span><span class="sc">{</span>K<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-573"><a href="#cb8-573" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"V.shape: </span><span class="sc">{</span>V<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-574"><a href="#cb8-574" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-575"><a href="#cb8-575" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Torch] Scale Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-576"><a href="#cb8-576" aria-hidden="true" tabindex="-1"></a>    y1 <span class="op">=</span> self_attention_from_torch(Q, K, V)</span>
+<span id="cb8-577"><a href="#cb8-577" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1.shape: </span><span class="sc">{</span>y1<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-578"><a href="#cb8-578" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-579"><a href="#cb8-579" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Vanilla Dot-Product Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-580"><a href="#cb8-580" aria-hidden="true" tabindex="-1"></a>    y2 <span class="op">=</span> self_attention(Q, K, V)</span>
+<span id="cb8-581"><a href="#cb8-581" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y2.shape: </span><span class="sc">{</span>y2<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-582"><a href="#cb8-582" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-583"><a href="#cb8-583" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"[Numpy] Flash Attention"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-584"><a href="#cb8-584" aria-hidden="true" tabindex="-1"></a>    y3 <span class="op">=</span> flash_attention(Q, K, V)</span>
+<span id="cb8-585"><a href="#cb8-585" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y3.shape: </span><span class="sc">{</span>y3<span class="sc">.</span>shape<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-586"><a href="#cb8-586" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-587"><a href="#cb8-587" aria-hidden="true" tabindex="-1"></a>    <span class="co"># Assertion</span></span>
+<span id="cb8-588"><a href="#cb8-588" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span> <span class="op">+</span> <span class="st">"Assertion"</span> <span class="op">+</span> <span class="st">"="</span> <span class="op">*</span> <span class="dv">10</span>)</span>
+<span id="cb8-589"><a href="#cb8-589" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y2: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y2)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-590"><a href="#cb8-590" aria-hidden="true" tabindex="-1"></a>    <span class="bu">print</span>(<span class="ss">f"y1 vs y3: </span><span class="sc">{</span>np<span class="sc">.</span>allclose(y1, y3)<span class="sc">}</span><span class="ss">"</span>)</span>
+<span id="cb8-591"><a href="#cb8-591" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-592"><a href="#cb8-592" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-593"><a href="#cb8-593" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-594"><a href="#cb8-594" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
-<span id="cb8-595"><a href="#cb8-595" aria-hidden="true" tabindex="-1"></a>    test_flash_attention()</span>
+<span id="cb8-593"><a href="#cb8-593" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> main():</span>
+<span id="cb8-594"><a href="#cb8-594" aria-hidden="true" tabindex="-1"></a>    test_flash_attention()</span>
+<span id="cb8-595"><a href="#cb8-595" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb8-596"><a href="#cb8-596" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-597"><a href="#cb8-597" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb8-598"><a href="#cb8-598" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
-<span id="cb8-599"><a href="#cb8-599" aria-hidden="true" tabindex="-1"></a>    main()</span>
-<span id="cb8-600"><a href="#cb8-600" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb8-597"><a href="#cb8-597" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> <span class="va">__name__</span> <span class="op">==</span> <span class="st">"__main__"</span>:</span>
+<span id="cb8-598"><a href="#cb8-598" aria-hidden="true" tabindex="-1"></a>    main()</span>
+<span id="cb8-599"><a href="#cb8-599" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
 </code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 </div></div></div></div></div>
 </div> <!-- /content -->
